@@ -14,6 +14,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import random
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import global_state
@@ -239,7 +240,7 @@ class LayerTest(testing.TestCase):
         self.assertAllClose(layer(inputs, training=training), inputs)
 
     @parameterized.parameters("full", "list_of_layers", "larger_than")
-    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX-specific test")
+    @pytest.mark.skipif(config.backend() != "jax", reason="JAX-specific test")
     def test_remat_nested_training_gradients(self, mode):
         import jax
 
@@ -712,7 +713,7 @@ class LayerTest(testing.TestCase):
         self.assertLen(model.losses, 1)
         self.assertAllClose(model.losses[0], 1.0)
 
-    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    @pytest.mark.skipif(config.backend() != "torch", reason="Torch only test.")
     def test_add_loss_torch_compile_does_not_recompile(self):
         import torch
         from torch._dynamo.utils import counters
@@ -848,7 +849,7 @@ class LayerTest(testing.TestCase):
         self.assertEqual(ops.min(layer(x, training=True)), 0)
 
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        config.backend() == "torch",
         reason="Some torch ops not implemented for float16 on CPU.",
     )
     def test_mixed_precision(self):
@@ -868,7 +869,7 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.kernel.dtype, "float32")
 
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        config.backend() == "torch",
         reason="Some torch ops not implemented for float16 on CPU.",
     )
     def test_autocast(self):
@@ -989,7 +990,7 @@ class LayerTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() == "numpy",
+        config.backend() == "numpy",
         reason="compute_output_spec not supported with numpy",
     )
     def test_end_to_end_masking(self):
@@ -1665,7 +1666,7 @@ class LayerTest(testing.TestCase):
         variable_paths = set(v.path for v in layer.variables)
         self.assertTrue("inner_layer/inner" in variable_paths)
         self.assertTrue("inner_inner_layer/inner" in variable_paths)
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             parameter_names = set(
                 param_name.replace("_torch_params.", "")
                 for param_name, _ in layer.named_parameters()
@@ -1722,7 +1723,7 @@ class LayerTest(testing.TestCase):
             "training_layer/inner_layer/inner_inner_layer/inner"
             in variable_paths
         )
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             parameter_names = set(
                 param_name.replace("_torch_params.", "")
                 for param_name, _ in layer.named_parameters()
@@ -1771,7 +1772,7 @@ class LayerTest(testing.TestCase):
             layer.variables[0].path,
             "training_layer/post_build_modify_layer/var",
         )
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             parameter_names = [pname for pname, _ in layer.named_parameters()]
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
@@ -1789,7 +1790,7 @@ class LayerTest(testing.TestCase):
             layer.variables[1].path,
             "training_layer/post_build_modify_layer/var2",
         )
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             # TODO (haohuanw, fchollet): Needs further discussion on how to
             # properly manage torch params. Post build modification cannot
             # propagate to parent torch params.
@@ -1821,7 +1822,7 @@ class LayerTest(testing.TestCase):
             layer.variables[0].path,
             "training_layer/post_build_modify_layer/var2",
         )
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             # TODO (haohuanw, fchollet): Needs further discussion on how to
             # properly manage torch params. Post build modification cannot
             # propagate to parent torch params.
@@ -1849,7 +1850,7 @@ class LayerTest(testing.TestCase):
                 "_torch_params.training_layer/post_build_modify_layer/var2",
             )
 
-    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    @pytest.mark.skipif(config.backend() != "torch", reason="Torch only test.")
     def test_torch_params_create_deterministic(self):
         class MyLayer(layers.Layer):
             def __init__(self):
@@ -1873,7 +1874,7 @@ class LayerTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
-        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+        reason=f"{config.backend()} backend doesn't support complex dtypes.",
     )
     def test_complex_dtype_support(self):
         class MyDenseLayer(layers.Layer):

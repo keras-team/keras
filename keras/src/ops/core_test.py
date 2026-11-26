@@ -14,6 +14,7 @@ from keras.src import optimizers
 from keras.src import random
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
@@ -625,19 +626,19 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
-        reason=f"{backend.backend()} backend doesn't support sparse tensors.",
+        reason=f"{config.backend()} backend doesn't support sparse tensors.",
     )
     def test_convert_to_tensor_sparse(self):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             x = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 3))
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             x = jax_sparse.BCOO(([1.0, 2.0], [[0, 0], [1, 2]]), shape=(2, 3))
         else:
-            self.fail(f"Sparse is unsupported with backend {backend.backend()}")
+            self.fail(f"Sparse is unsupported with backend {config.backend()}")
 
         x_default = ops.convert_to_tensor(x)
         self.assertSparse(x_default)
@@ -655,7 +656,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_RAGGED_TENSORS,
-        reason=f"{backend.backend()} backend doesn't support ragged tensors.",
+        reason=f"{config.backend()} backend doesn't support ragged tensors.",
     )
     def test_convert_to_tensor_ragged(self):
         import tensorflow as tf
@@ -717,7 +718,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
         dy_dx = ops.grad(to_derive)(x)
         self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
-        if backend.backend() != "tensorflow":
+        if config.backend() != "tensorflow":
             # TensorFlow's `log` and `exp` gradients are defined at 100.0.
             dz_dx = ops.grad(log1pexp_nan)(x)
             self.assertTrue(ops.isnan(dz_dx))
@@ -930,7 +931,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
     def test_is_tensor(self):
         np_x = np.array([[1, 2, 3], [3, 2, 1]])
         x = backend.ops.convert_to_tensor(np_x)
-        if backend.backend() != "numpy":
+        if config.backend() != "numpy":
             self.assertFalse(ops.is_tensor(np_x))
         self.assertTrue(ops.is_tensor(x))
         self.assertFalse(ops.is_tensor([1, 2, 3]))
@@ -1049,7 +1050,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(carry2, 13)
 
         # Test nested init
-        if backend.backend() != "tensorflow":
+        if config.backend() != "tensorflow":
             # tensorflow doesn't support arbitrary shape/dtype of the output of
             # `f`. It must be the same as `init`.
             def multiply_two(carry, _):
@@ -1236,25 +1237,25 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
-        reason=f"{backend.backend()} backend doesn't support sparse tensors.",
+        reason=f"{config.backend()} backend doesn't support sparse tensors.",
     )
     def test_shape_sparse(self):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             x = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 3))
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             x = jax_sparse.BCOO(([1.0, 2.0], [[0, 0], [1, 2]]), shape=(2, 3))
         else:
-            self.fail(f"Sparse is unsupported with backend {backend.backend()}")
+            self.fail(f"Sparse is unsupported with backend {config.backend()}")
 
         self.assertEqual(core.shape(x), (2, 3))
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
-        reason=f"{backend.backend()} backend doesn't support ragged tensors.",
+        reason=f"{config.backend()} backend doesn't support ragged tensors.",
     )
     def test_shape_ragged(self):
         import tensorflow as tf
@@ -1535,7 +1536,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             self.assertAllClose(o, o_e)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Dynamic scan fallback is TF-specific.",
     )
     def test_associative_scan_dynamic_scan_body_tf_tensorspec_dynamic_fallback(
@@ -1562,7 +1563,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(run_scan(x1), x1.numpy())
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Dynamic scan fallback is TF-specific.",
     )
     def test_associative_scan_dynamic_scan_body_tf_tensorspec_reverse(self):
@@ -1579,7 +1580,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(result, expected)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Dynamic scan fallback is TF-specific.",
     )
     def test_associative_scan_dynamic_scan_body_tf_tensorspec_structured_input(
@@ -1600,7 +1601,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(rb, np.cumsum(b.numpy(), axis=0))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Dynamic scan fallback is TF-specific.",
     )
     def test_associative_scan_dynamic_scan_body_tf_function_dynamic_lengths(
@@ -1648,7 +1649,7 @@ class CoreOpsDtypeTest(testing.TestCase):
     INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
@@ -1664,21 +1665,21 @@ class CoreOpsDtypeTest(testing.TestCase):
         self.assertDType(core.Cast(dtype).symbolic_call(x), dtype)
 
     @parameterized.parameters(
-        ((), None, backend.floatx()),
-        ([], None, backend.floatx()),
+        ((), None, config.floatx()),
+        ([], None, config.floatx()),
         (bool(0), None, "bool"),
         (int(0), None, "int32"),
-        (float(0), None, backend.floatx()),
+        (float(0), None, config.floatx()),
         (1, "bool", "bool"),
         (1.0, "int32", "int32"),
         (1.0, "float32", "float32"),
         ([False, True, False], None, "bool"),
         ([1, 2, 3], None, "int32"),
-        ([1.0, 2.0, 3.0], None, backend.floatx()),
-        ([1, 2.0, 3], None, backend.floatx()),
+        ([1.0, 2.0, 3.0], None, config.floatx()),
+        ([1, 2.0, 3], None, config.floatx()),
         ([[False], [True], [False]], None, "bool"),
         ([[1], [2], [3]], None, "int32"),
-        ([[1], [2.0], [3]], None, backend.floatx()),
+        ([[1], [2.0], [3]], None, config.floatx()),
         *[
             (np.array(0, dtype=dtype), None, dtype)
             for dtype in ALL_DTYPES
@@ -1695,7 +1696,7 @@ class CoreOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_convert_to_numpy(self, dtype):
-        expected_dtype = backend.floatx() if dtype is None else dtype
+        expected_dtype = config.floatx() if dtype is None else dtype
 
         x = ops.array([1.0, 2.0, 3.0], dtype=dtype)
         self.assertDType(ops.convert_to_numpy(x), expected_dtype)
@@ -1748,18 +1749,18 @@ class ConvertToTensorFloatxTest(testing.TestCase):
 
     def setUp(self):
         super().setUp()
-        self._floatx = backend.floatx()
+        self._floatx = config.floatx()
 
     def tearDown(self):
         super().tearDown()
-        backend.set_floatx(self._floatx)
+        config.set_floatx(self._floatx)
 
     @parameterized.named_parameters(
         named_product(floatx=["float32", "bfloat16"])
     )
     def test_preserves_input_dtype(self, floatx):
         """An input that already carries a dtype keeps it."""
-        backend.set_floatx(floatx)
+        config.set_floatx(floatx)
         for dtype in self.PRESERVED_DTYPES:
             x = np.ones((2,), dtype=dtype)
             self.assertDType(
@@ -1773,7 +1774,7 @@ class ConvertToTensorFloatxTest(testing.TestCase):
     )
     def test_explicit_bfloat16_is_honored(self, floatx):
         """An explicit `dtype="bfloat16"` still works, for any input type."""
-        backend.set_floatx(floatx)
+        config.set_floatx(floatx)
         for x in (
             np.ones((2,), dtype="int32"),
             np.ones((2,), dtype="float32"),
@@ -1800,7 +1801,7 @@ class ConvertToTensorFloatxTest(testing.TestCase):
         `floatx` precision via `_lattice_result_type`), so only the kind
         of the dtype is asserted.
         """
-        backend.set_floatx(floatx)
+        config.set_floatx(floatx)
         for x in ([1, 2, 3], 3, (1, 2)):
             dtype = standardize_dtype(ops.convert_to_tensor(x).dtype)
             self.assertIn(
@@ -1812,7 +1813,7 @@ class ConvertToTensorFloatxTest(testing.TestCase):
 
     def test_integer_indices_survive_bfloat16_floatx(self):
         """Downstream ops that require integer inputs keep working."""
-        backend.set_floatx("bfloat16")
+        config.set_floatx("bfloat16")
         table = np.arange(12, dtype="float32").reshape(4, 3)
         indices = np.array([1, 2], dtype="int32")
 
@@ -1996,7 +1997,7 @@ class CoreOpsBehaviorTests(testing.TestCase):
         self.assertEqual(standardize_dtype(t.dtype), "bool")
 
     @pytest.mark.skipif(
-        backend.backend() != "torch",
+        config.backend() != "torch",
         reason="torch.export graph inspection is torch-only.",
     )
     def test_convert_to_tensor_python_scalar_no_float64_in_export(self):

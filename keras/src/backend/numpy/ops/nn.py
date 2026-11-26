@@ -4,10 +4,11 @@ import jax
 import numpy as np
 from jax import lax
 
-from keras.src import backend
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import result_type
+from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
@@ -42,6 +43,7 @@ def relu6(x):
 
 def sigmoid(x):
     x = convert_to_tensor(x)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     return np.array(1.0, x.dtype) / (np.array(1.0, x.dtype) + np.exp(-x))
 
 
@@ -252,11 +254,15 @@ def threshold(x, threshold, default_value):
 
 
 def softmax(x, axis=-1):
+    x = convert_to_tensor(x)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
 
 
 def log_softmax(x, axis=-1):
+    x = convert_to_tensor(x)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     max_x = np.max(x, axis=axis, keepdims=True)
     logsumexp = np.log(np.exp(x - max_x).sum(axis=axis, keepdims=True))
     return x - max_x - logsumexp
@@ -349,7 +355,7 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -368,7 +374,7 @@ def average_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -618,7 +624,7 @@ def _adaptive_pool3d_impl(inputs, output_size, mode, data_format):
 
 
 def adaptive_average_pool(inputs, output_size, data_format=None):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     dims = inputs.ndim - 2
     if dims == 1:
         return _adaptive_pool1d_impl(
@@ -636,7 +642,7 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
 
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     dims = inputs.ndim - 2
     if dims == 1:
         return _adaptive_pool1d_impl(inputs, output_size, "max", data_format)
@@ -680,7 +686,7 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -740,7 +746,7 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     check_conv_input_channels(inputs, kernel, data_format)
@@ -791,7 +797,7 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     depthwise_kernel = convert_to_tensor(depthwise_kernel)
     pointwise_kernel = convert_to_tensor(pointwise_kernel)
@@ -823,7 +829,7 @@ def conv_transpose(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     check_conv_transpose_input_channels(inputs, kernel, data_format)
@@ -928,7 +934,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = log_softmax(output, axis=axis)
     else:
         output = output / np.sum(output, axis, keepdims=True)
-        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = np.clip(output, config.epsilon(), 1.0 - config.epsilon())
         log_prob = np.log(output)
     return -np.sum(target * log_prob, axis=axis)
 
@@ -955,7 +961,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = log_softmax(output, axis=axis)
     else:
         output = output / np.sum(output, axis, keepdims=True)
-        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = np.clip(output, config.epsilon(), 1.0 - config.epsilon())
         log_prob = np.log(output)
     target = one_hot(target, output.shape[axis], axis=axis)
     return -np.sum(target * log_prob, axis=axis)
@@ -965,7 +971,7 @@ def binary_crossentropy(target, output, from_logits=False):
     target = np.array(target)
     output = np.array(output)
     if not is_float_dtype(output.dtype):
-        output = cast(output, backend.floatx())
+        output = cast(output, config.floatx())
     target = cast(target, output.dtype)
     dtype = output.dtype
 
@@ -979,9 +985,9 @@ def binary_crossentropy(target, output, from_logits=False):
     if from_logits:
         output = sigmoid(output)
 
-    output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    output = np.clip(output, config.epsilon(), 1.0 - config.epsilon())
     bce = target * np.log(output)
-    bce += (1.0 - target) * np.log(1.0 - output)
+    bce = bce + (1.0 - target) * np.log(1.0 - output)
     return (-bce).astype(dtype)
 
 
@@ -1440,7 +1446,7 @@ def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
         value = value.astype("float32")
     logits = np.einsum("BTNH,BSNH->BNTS", query, key)
     logits = logits.astype(logits_dtype)
-    logits *= np.array(scale, dtype=logits.dtype)
+    logits = logits * np.array(scale, dtype=logits.dtype)
 
     if bias is not None:
         logits = (logits + bias).astype(logits.dtype)

@@ -1,5 +1,6 @@
 import keras.src.layers as layers
 from keras.src.api_export import keras_export
+from keras.src.backend.common import standardize_dtype
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
@@ -282,7 +283,7 @@ class AugMix(BaseImagePreprocessingLayer):
         return jax_utils.is_in_jax_tracing_scope(layer_idx)
 
     def _apply_selected_layer(self, inputs, transforms, layer_idx, method):
-        dtype = self.backend.standardize_dtype(inputs.dtype)
+        dtype = standardize_dtype(inputs.dtype)
 
         def make_branch(layer_name, transformation):
             layer = getattr(self, layer_name)
@@ -324,7 +325,9 @@ class AugMix(BaseImagePreprocessingLayer):
                         layer_idxes[idx][depth],
                         "transform_images",
                     )
-                aug_images += copied_images * chain_mixing_weights[idx]
+                aug_images = (
+                    aug_images + copied_images * chain_mixing_weights[idx]
+                )
             images = weight_sample * images + (1 - weight_sample) * aug_images
 
             images = self.backend.ops.numpy.clip(
@@ -368,7 +371,7 @@ class AugMix(BaseImagePreprocessingLayer):
                         layer_idxes[idx][depth],
                         "transform_segmentation_masks",
                     )
-                aug_masks += copied_masks * chain_mixing_weights[idx]
+                aug_masks = aug_masks + copied_masks * chain_mixing_weights[idx]
             segmentation_masks = (
                 weight_sample * segmentation_masks
                 + (1 - weight_sample) * aug_masks

@@ -1,8 +1,8 @@
 """Fake quantization with learnable ranges, for quantization-aware training."""
 
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import result_type
@@ -120,7 +120,7 @@ def fake_quant_with_min_max_vars(
 
     # Shortcut for TensorFlow backend by using `tf.quantization.fake_quant_*`
     # apis. This is necessary to be recognizable for the TFLite converter.
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         import tensorflow as tf
 
         # `tf.quantization.fake_quant_*` only supports float32.

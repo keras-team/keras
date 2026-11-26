@@ -1,10 +1,10 @@
 import numpy as np
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import dtype_policies
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 
 
 class ZeroPadding3DTest(testing.TestCase):
@@ -89,12 +89,12 @@ class ZeroPadding3DTest(testing.TestCase):
             self.assertAllClose(outputs[:, 2:-2, 2:-2, 2:-2, :], inputs)
 
     def test_zero_padding_3d_with_dynamic_spatial_dim(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_layer = layers.Input(batch_shape=(1, 2, None, 4, 5))
         else:
             input_layer = layers.Input(batch_shape=(1, 5, 2, None, 4))
         padded = layers.ZeroPadding3D(((1, 2), (3, 4), (5, 6)))(input_layer)
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             self.assertEqual(padded.shape, (1, 5, None, 15, 5))
         else:
             self.assertEqual(padded.shape, (1, 5, 5, None, 15))

@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import constraints
 from keras.src import export
 from keras.src import layers
@@ -17,6 +16,7 @@ from keras.src import quantizers
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
 from keras.src.layers.core.einsum_dense import _analyze_einsum_string
 from keras.src.quantizers.awq_config import AWQConfig
@@ -475,7 +475,7 @@ class EinsumDenseTest(testing.TestCase):
         layer.enable_lora(2)
         self.assertLen(layer.trainable_weights, 2)
         self.assertLen(layer.non_trainable_weights, 1)
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             self.assertLen(layer.torch_params, 3)
         self.assertDType(layer.lora_kernel_a, "float32")
         self.assertDType(layer.lora_kernel_b, "float32")
@@ -983,16 +983,16 @@ class EinsumDenseTest(testing.TestCase):
         expected_non_trainable,
         expected_torch_params,
     ):
-        config = dict(
+        layer_config = dict(
             equation=equation, output_shape=output_shape[1:], bias_axes=None
         )
-        layer = layers.EinsumDense(**config)
+        layer = layers.EinsumDense(**layer_config)
         layer.build(input_shape)
         layer.enable_lora(2)
         layer.quantize(quantization_mode)
         self.assertLen(layer.trainable_weights, 2)
         self.assertLen(layer.non_trainable_weights, expected_non_trainable)
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             self.assertLen(layer.torch_params, expected_torch_params)
 
         # Try calling fit()
@@ -1029,7 +1029,7 @@ class EinsumDenseTest(testing.TestCase):
             self.get_temp_dir(), "quantized_lora_model.weights.h5"
         )
         model.save_weights(temp_filepath)
-        new_model = models.Sequential([layers.EinsumDense(**config)])
+        new_model = models.Sequential([layers.EinsumDense(**layer_config)])
         new_model.build(input_shape)
         new_model.quantize(quantization_mode)
         new_model.load_weights(temp_filepath)
@@ -1042,7 +1042,7 @@ class EinsumDenseTest(testing.TestCase):
         self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
 
         # Test export and TFSMLayer reloading when using tensorflow backend
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -1140,12 +1140,12 @@ class EinsumDenseTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_float8_fitting(self):
-        config = dict(
+        layer_config = dict(
             equation="ab,bcd->acd",
             output_shape=(8, 32),
             bias_axes="d",
         )
-        layer = layers.EinsumDense(**config)
+        layer = layers.EinsumDense(**layer_config)
         layer.build((None, 3))
         layer.quantize("float8")
         self.assertLen(layer.trainable_weights, 8)
@@ -1171,14 +1171,14 @@ class EinsumDenseTest(testing.TestCase):
             self.get_temp_dir(), "quantized_lora_model.weights.h5"
         )
         model.save_weights(temp_filepath)
-        new_model = models.Sequential([layers.EinsumDense(**config)])
+        new_model = models.Sequential([layers.EinsumDense(**layer_config)])
         new_model.build((None, 3))
         new_model.quantize("float8")
         new_model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
         # Test export and TFSMLayer reloading when using tensorflow backend
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -1345,29 +1345,32 @@ class EinsumDenseTest(testing.TestCase):
             # outputs_grad_amax_history.
             "7": np.random.random((1024,)).astype("float32"),
         }
+        # The calibration modes store the kernel `[b, c, d]` of
+        # `ab,bcd->acd` as its `(rows, columns)` view: the contracted axis
+        # `b` (3 rows) against `c * d` (256 columns), packed to 128 bytes
+        # per row at 4-bit, with one group of 8 rows covering every row.
         gptq_store = {
             # bias
             "0": np.random.random((32,)).astype("float32"),
             # quantized_kernel
-            "1": np.random.randint(0, 16, size=(24, 16), dtype="uint8"),
+            "1": np.random.randint(0, 16, size=(3, 128), dtype="uint8"),
             # kernel_scale.
-            "2": np.random.random((3, 32)).astype("float32"),
+            "2": np.random.random((1, 256)).astype("float32"),
             # kernel_zero
-            "3": np.random.random((3, 32)).astype("uint8"),
+            "3": np.random.random((1, 256)).astype("uint8"),
             # g_idx: legacy checkpoints stored the integer group indices as
             # float32; they load into the float32 g_idx variable unchanged.
-            "4": (np.arange(24) // 8).astype("float32"),
+            "4": (np.arange(3) // 8).astype("float32"),
         }
-        # kernel shape (3, 8, 32), packed: (16, 24) for 4-bit
         awq_store = {
             "0": np.random.random((32,)).astype("float32"),  # bias
-            "1": np.random.randint(0, 16, size=(24, 16), dtype="uint8"),
-            "2": np.random.random((3, 32)).astype("float32"),  # scale
-            "3": np.random.random((3, 32)).astype("uint8"),  # zero
-            "4": np.random.random((24,)).astype("float32"),  # awq_scales
+            "1": np.random.randint(0, 16, size=(3, 128), dtype="uint8"),
+            "2": np.random.random((1, 256)).astype("float32"),  # scale
+            "3": np.random.random((1, 256)).astype("uint8"),  # zero
+            "4": np.random.random((3,)).astype("float32"),  # awq_scales
             # g_idx saved as int32 by a newer checkpoint; the cast on load
             # brings it into the float32 storage variable (see above).
-            "5": (np.arange(24) // 8).astype("int32"),
+            "5": (np.arange(3) // 8).astype("int32"),
         }
         config = dict(
             equation="ab,bcd->acd",

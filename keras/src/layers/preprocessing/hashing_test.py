@@ -9,6 +9,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.saving import load_model
 from keras.src.testing.test_utils import named_product
 
@@ -17,12 +18,12 @@ class ArrayLike:
     def __init__(self, values):
         self.values = values
 
-    def __array__(self):
-        return np.array(self.values)
+    def __array__(self, dtype=None, *, copy=None):
+        return np.array(self.values, dtype=dtype)
 
 
 @pytest.mark.skipif(
-    backend.backend() == "numpy", reason="Broken with NumPy backend."
+    config.backend() == "numpy", reason="Broken with NumPy backend."
 )
 class HashingTest(testing.TestCase):
     def test_config(self):
@@ -149,7 +150,7 @@ class HashingTest(testing.TestCase):
         self.assertAllClose(output, [[1], [1], [2], [0], [1]])
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Uses tf.SparseTensor."
+        config.backend() != "tensorflow", reason="Uses tf.SparseTensor."
     )
     def test_hash_sparse_input_farmhash(self):
         layer = layers.Hashing(num_bins=2)
@@ -164,7 +165,7 @@ class HashingTest(testing.TestCase):
         self.assertAllClose(output.values, [0, 0, 1, 0, 0])
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Uses tf.SparseTensor."
+        config.backend() != "tensorflow", reason="Uses tf.SparseTensor."
     )
     def test_hash_sparse_input_mask_value_farmhash(self):
         empty_mask_layer = layers.Hashing(num_bins=3, mask_value="")
@@ -186,7 +187,7 @@ class HashingTest(testing.TestCase):
         self.assertAllClose(omar_mask_output.values, [0, 1, 2, 1, 1])
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Uses tf.SparseTensor."
+        config.backend() != "tensorflow", reason="Uses tf.SparseTensor."
     )
     def test_hash_sparse_int_input_farmhash(self):
         layer = layers.Hashing(num_bins=3)
@@ -199,7 +200,7 @@ class HashingTest(testing.TestCase):
         self.assertAllClose(output.values, [1, 0, 1, 0, 2])
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Uses tf.SparseTensor."
+        config.backend() != "tensorflow", reason="Uses tf.SparseTensor."
     )
     def test_hash_sparse_input_siphash(self):
         layer = layers.Hashing(num_bins=2, salt=[133, 137])
@@ -220,7 +221,7 @@ class HashingTest(testing.TestCase):
         self.assertAllClose(output.values, [1, 0, 1, 0, 1])
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Uses tf.SparseTensor."
+        config.backend() != "tensorflow", reason="Uses tf.SparseTensor."
     )
     def test_hash_sparse_int_input_siphash(self):
         layer = layers.Hashing(num_bins=3, salt=[133, 137])
@@ -358,7 +359,7 @@ class HashingTest(testing.TestCase):
         self.assertEqual(layer_1.name, layer.name)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Uses string dtype."
+        config.backend() != "tensorflow", reason="Uses string dtype."
     )
     def test_saving(self):
         input_data = np.array(

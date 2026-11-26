@@ -15,10 +15,11 @@ from jax.experimental.pallas.ops.tpu.splash_attention import (
     splash_attention_mask,
 )
 
-from keras.src import backend
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import result_type
+from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
@@ -47,6 +48,7 @@ def relu6(x):
 
 def sigmoid(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnn.sigmoid(x)
 
 
@@ -75,11 +77,13 @@ def softplus(x):
 
 def softsign(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnn.soft_sign(x)
 
 
 def soft_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.where(
         x > threshold,
         x - threshold,
@@ -89,6 +93,7 @@ def soft_shrink(x, threshold=0.5):
 
 def sparse_plus(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnn.sparse_plus(x)
 
 
@@ -99,6 +104,7 @@ def silu(x):
 
 def squareplus(x, b=4):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnn.squareplus(x, b=b)
 
 
@@ -142,6 +148,7 @@ def elu(x, alpha=1.0):
 
 def selu(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnn.selu(x)
 
 
@@ -168,6 +175,7 @@ def hard_tanh(x):
 
 def hard_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.where(jnp.abs(x) > threshold, x, 0.0)
 
 
@@ -178,11 +186,13 @@ def threshold(x, threshold, default_value):
 
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnn.softmax(x, axis=axis)
 
 
 def log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnn.log_softmax(x, axis=axis)
 
 
@@ -266,7 +276,7 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -285,7 +295,7 @@ def average_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -692,7 +702,7 @@ def _adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
 
 
 def adaptive_average_pool(inputs, output_size, data_format=None):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     dims = inputs.ndim - 2
     if dims == 1:
         return _adaptive_average_pool1d(inputs, output_size, data_format)
@@ -704,7 +714,7 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
 
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     dims = inputs.ndim - 2
     if dims == 1:
         return _adaptive_max_pool1d(inputs, output_size, data_format)
@@ -748,7 +758,7 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -808,7 +818,7 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     check_conv_input_channels(inputs, kernel, data_format)
@@ -857,7 +867,7 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     depthwise_kernel = convert_to_tensor(depthwise_kernel)
     pointwise_kernel = convert_to_tensor(pointwise_kernel)
@@ -889,7 +899,7 @@ def conv_transpose(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     check_conv_transpose_input_channels(inputs, kernel, data_format)
@@ -1003,7 +1013,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = jax.nn.log_softmax(output, axis=axis)
     else:
         output = output / jnp.sum(output, axis, keepdims=True)
-        output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = jnp.clip(output, config.epsilon(), 1.0 - config.epsilon())
         log_prob = jnp.log(output)
     return -jnp.sum(target * log_prob, axis=axis)
 
@@ -1030,7 +1040,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = jax.nn.log_softmax(output, axis=axis)
     else:
         output = output / jnp.sum(output, axis, keepdims=True)
-        output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = jnp.clip(output, config.epsilon(), 1.0 - config.epsilon())
         log_prob = jnp.log(output)
     target = jnn.one_hot(target, output.shape[axis], axis=axis)
     return -jnp.sum(target * log_prob, axis=axis)
@@ -1040,7 +1050,7 @@ def binary_crossentropy(target, output, from_logits=False):
     target = jnp.array(target)
     output = jnp.array(output)
     if not is_float_dtype(output.dtype):
-        output = cast(output, backend.floatx())
+        output = cast(output, config.floatx())
     target = cast(target, output.dtype)
 
     if target.shape != output.shape:
@@ -1055,7 +1065,7 @@ def binary_crossentropy(target, output, from_logits=False):
         log_neg_logits = jax.nn.log_sigmoid(-output)
         return -1.0 * target * log_logits - (1.0 - target) * log_neg_logits
 
-    output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    output = jnp.clip(output, config.epsilon(), 1.0 - config.epsilon())
     bce = target * jnp.log(output)
     bce += (1.0 - target) * jnp.log(1.0 - output)
     return -bce

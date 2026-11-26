@@ -181,11 +181,9 @@ def heaviside(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
 
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    elif dtype in ["int64"]:
-        dtype = "float64"
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
 
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
@@ -746,8 +744,7 @@ def mean(x, axis=None, keepdims=False):
             return tf.reduce_mean(t, axis=axis, keepdims=keepdims)
 
         return xla_reduce_mean(x)
-    if "int" in dtype or dtype == "bool":
-        x = tf.cast(x, config.floatx())
+    x = tf.cast(x, dtypes.promote_to_float_dtype(dtype))
     return tf.reduce_mean(x, axis=axis, keepdims=keepdims)
 
 
@@ -808,9 +805,7 @@ def abs(x):
 @sparse.elementwise_unary
 def fabs(x):
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if "int" in dtype or dtype == "bool":
-        x = tf.cast(x, config.floatx())
+    x = tf.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return tf.abs(x)
 
 
@@ -869,10 +864,7 @@ def arange(start, stop=None, step=None, dtype=None):
 @sparse.densifying_unary(0.5 * np.pi)
 def arccos(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.acos(x)
 
@@ -880,10 +872,7 @@ def arccos(x):
 @sparse.densifying_unary(np.nan)
 def arccosh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.acosh(x)
 
@@ -891,10 +880,7 @@ def arccosh(x):
 @sparse.elementwise_unary
 def arcsin(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.asin(x)
 
@@ -902,10 +888,7 @@ def arcsin(x):
 @sparse.elementwise_unary
 def arcsinh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.asinh(x)
 
@@ -913,10 +896,7 @@ def arcsinh(x):
 @sparse.elementwise_unary
 def arctan(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.atan(x)
 
@@ -924,7 +904,9 @@ def arctan(x):
 def arctan2(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
     return tf.math.atan2(x1, x2)
@@ -933,10 +915,7 @@ def arctan2(x1, x2):
 @sparse.elementwise_unary
 def arctanh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.atanh(x)
 
@@ -1074,7 +1053,7 @@ def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
 
     if weights is None:  # Treat all weights as 1
-        dtype = dtypes.result_type(x.dtype, float)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         x = tf.cast(x, dtype)
         avg = tf.reduce_mean(x, axis=axis)
     else:
@@ -1104,7 +1083,9 @@ def average(x, axis=None, weights=None):
                 "Shape of weights must be consistent with shape of a "
                 "along specified axis."
             )
-        dtype = dtypes.result_type(x.dtype, weights.dtype, float)
+        dtype = dtypes.promote_to_float_dtype(
+            dtypes.result_type(x.dtype, weights.dtype)
+        )
         x = tf.cast(x, dtype)
         weights = tf.cast(weights, dtype)
 
@@ -1210,23 +1191,16 @@ def broadcast_to(x, shape):
 
 def cbrt(x):
     x = convert_to_tensor(x)
-
-    dtype = standardize_dtype(x.dtype)
-    if dtype == "int64":
-        x = tf.cast(x, "float64")
-    elif dtype not in ["bfloat16", "float16", "float64"]:
-        x = tf.cast(x, config.floatx())
-
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = tf.cast(x, float_dtype)
     return tf.sign(x) * tf.pow(tf.abs(x), 1.0 / 3.0)
 
 
 @sparse.elementwise_unary
 def ceil(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.ceil(x)
 
@@ -1279,7 +1253,9 @@ def copy(x):
 def copysign(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
     magnitude = tf.abs(x1)
@@ -1289,10 +1265,7 @@ def copysign(x1, x2):
 @sparse.densifying_unary(1)
 def cos(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.cos(x)
 
@@ -1300,10 +1273,7 @@ def cos(x):
 @sparse.densifying_unary(1)
 def cosh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.cosh(x)
 
@@ -1399,20 +1369,7 @@ def cumsum(x, axis=None, dtype=None):
 
 def deg2rad(x):
     x = convert_to_tensor(x)
-
-    dtype = x.dtype
-    if standardize_dtype(dtype) in [
-        "bool",
-        "int8",
-        "int16",
-        "int32",
-        "uint8",
-        "uint16",
-        "uint32",
-    ]:
-        dtype = config.floatx()
-    elif standardize_dtype(dtype) in ["int64"]:
-        dtype = "float64"
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
 
     pi = tf.constant(math.pi, dtype=dtype)
@@ -1421,20 +1378,7 @@ def deg2rad(x):
 
 def rad2deg(x):
     x = convert_to_tensor(x)
-
-    dtype = x.dtype
-    if standardize_dtype(dtype) in [
-        "bool",
-        "int8",
-        "int16",
-        "int32",
-        "uint8",
-        "uint16",
-        "uint32",
-    ]:
-        dtype = config.floatx()
-    elif standardize_dtype(dtype) in ["int64"]:
-        dtype = "float64"
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
 
     pi = tf.constant(math.pi, dtype=dtype)
@@ -1610,18 +1554,14 @@ def equal(x1, x2):
 @sparse.densifying_unary(1)
 def exp(x):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = tf.cast(x, config.floatx())
+    x = tf.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return tf.exp(x)
 
 
 @sparse.densifying_unary(1)
 def exp2(x):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = tf.cast(x, config.floatx())
+    x = tf.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return tf.math.pow(2.0, x)
 
 
@@ -1648,9 +1588,7 @@ def expand_dims(x, axis):
 @sparse.elementwise_unary
 def expm1(x):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = tf.cast(x, config.floatx())
+    x = tf.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return tf.math.expm1(x)
 
 
@@ -1688,11 +1626,7 @@ def flipud(x):
 @sparse.elementwise_unary
 def floor(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.floor(x)
 
@@ -1806,11 +1740,9 @@ def hypot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
 
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    elif dtype in ["int64"]:
-        dtype = "float64"
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
 
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
@@ -1847,12 +1779,7 @@ def imag(x):
 
 def i0(x):
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if dtype in ["int64", "float64"]:
-        dtype = "float64"
-    elif dtype not in ["bfloat16", "float16"]:
-        dtype = config.floatx()
-    x = tf.cast(x, dtype)
+    x = tf.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return tf.math.bessel_i0(x)
 
 
@@ -2046,7 +1973,7 @@ def lcm(x1, x2):
 def ldexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x1.dtype)
 
     if standardize_dtype(x2.dtype) not in dtypes.INT_TYPES:
         raise TypeError(
@@ -2125,11 +2052,7 @@ def linspace(
 @sparse.densifying_unary(-np.inf)
 def log(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.log(x)
 
@@ -2137,11 +2060,7 @@ def log(x):
 @sparse.densifying_unary(-np.inf)
 def log10(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.log(x) / tf.math.log(tf.constant(10, x.dtype))
 
@@ -2149,11 +2068,7 @@ def log10(x):
 @sparse.elementwise_unary
 def log1p(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.log1p(x)
 
@@ -2161,11 +2076,7 @@ def log1p(x):
 @sparse.densifying_unary(-np.inf)
 def log2(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.log(x) / tf.math.log(tf.constant(2, x.dtype))
 
@@ -2173,7 +2084,9 @@ def log2(x):
 def logaddexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
     amax = tf.maximum(x1, x2)
@@ -2199,7 +2112,9 @@ def logaddexp(x1, x2):
 def logaddexp2(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
     amax = tf.maximum(x1, x2)
@@ -2493,15 +2408,13 @@ def nanmax(x, axis=None, keepdims=False):
 def nanmean(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     if axis == () or axis == []:
-        return x
+        return tf.cast(x, dtype)
 
     if not x.dtype.is_floating:
-        return tf.reduce_mean(
-            tf.cast(x, "float32"), axis=axis, keepdims=keepdims
-        )
+        return tf.reduce_mean(tf.cast(x, dtype), axis=axis, keepdims=keepdims)
 
-    dtype = dtypes.result_type(standardize_dtype(x.dtype), float)
     total_sum = cast(nansum(x, axis=axis, keepdims=keepdims), dtype)
     normalizer = tf.reduce_sum(
         cast(~tf.math.is_nan(x), dtype),
@@ -2515,7 +2428,7 @@ def nanmedian(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
     if axis == () or axis == []:
-        return x
+        return tf.cast(x, dtypes.promote_to_float_dtype(x.dtype))
 
     return nanquantile(x, q=0.5, axis=axis, keepdims=keepdims)
 
@@ -2558,6 +2471,7 @@ def nanprod(x, axis=None, keepdims=False):
 
 def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
+    x = tf.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     q = convert_to_tensor(q, dtype=config.floatx())
 
     def _nanquantile_1d(v):
@@ -2645,7 +2559,7 @@ def nansum(x, axis=None, keepdims=False):
 
 def nanvar(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    result_dtype = dtypes.result_type(x.dtype, float)
+    result_dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, result_dtype)
 
     mean = nanmean(x, axis=axis, keepdims=True)
@@ -2888,7 +2802,7 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
     axis = to_tuple_or_list(axis)
-    compute_dtype = dtypes.result_type(x.dtype, float)
+    compute_dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, compute_dtype)
     return _quantile(x, q, axis=axis, method=method, keepdims=keepdims)
 
@@ -2924,6 +2838,7 @@ def real(x):
 @sparse.densifying_unary(np.inf)
 def reciprocal(x):
     x = convert_to_tensor(x)
+    x = tf.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return tf.math.reciprocal(x)
 
 
@@ -3023,20 +2938,14 @@ def signbit(x):
 @sparse.elementwise_unary
 def sin(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.sin(x)
 
 
 def sinc(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     pi_x = x * tf.constant(np.pi, dtype=x.dtype)
     return tf.where(
@@ -3049,10 +2958,7 @@ def sinc(x):
 @sparse.elementwise_unary
 def sinh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.sinh(x)
 
@@ -3116,9 +3022,7 @@ def stack(x, axis=0):
 
 def std(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = tf.cast(x, config.floatx())
+    x = tf.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return tf.math.reduce_std(x, axis=axis, keepdims=keepdims)
 
 
@@ -3283,10 +3187,7 @@ def take_along_axis(x, indices, axis=None):
 @sparse.elementwise_unary
 def tan(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.tan(x)
 
@@ -3294,10 +3195,7 @@ def tan(x):
 @sparse.elementwise_unary
 def tanh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.tanh(x)
 
@@ -3535,10 +3433,11 @@ def divide(x1, x2):
         x1 = convert_to_tensor(x1)
     if not isinstance(x2, (int, float)):
         x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-        float,
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
@@ -3550,10 +3449,11 @@ def divide_no_nan(x1, x2):
         x1 = convert_to_tensor(x1)
     if not isinstance(x2, (int, float)):
         x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-        float,
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
@@ -3586,7 +3486,9 @@ def power(x1, x2):
 def float_power(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
     return tf.pow(x1, x2)
@@ -3636,7 +3538,9 @@ def nextafter(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
 
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
     # tf.math.nextafter supports only float32 and float64.
@@ -3656,11 +3560,7 @@ def square(x):
 @sparse.elementwise_unary
 def sqrt(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, dtype)
     return tf.math.sqrt(x)
 
@@ -3671,7 +3571,7 @@ def squeeze(x, axis=None):
     static_shape = x.shape.as_list()
     if axis is not None:
         for a in axis:
-            if static_shape[a] != 1:
+            if static_shape[a] not in (1, None):
                 raise ValueError(
                     f"Cannot squeeze axis={a}, because the dimension is not 1."
                 )
@@ -3729,7 +3629,7 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
         return tf.transpose(tensor, perm=perm)
 
     y = convert_to_tensor(y)
-    dtype = dtypes.result_type(y.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(y.dtype)
     y = tf.cast(y, dtype)
 
     if x is None:
@@ -3770,8 +3670,8 @@ def vander(x, N=None, increasing=False):
 
 def var(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    result_dtype = dtypes.result_type(x.dtype, float)
+    result_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, "float32")
     x = tf.cast(x, compute_dtype)
     return tf.cast(
         tf.math.reduce_variance(x, axis=axis, keepdims=keepdims),
@@ -3851,13 +3751,11 @@ def logical_xor(x1, x2):
 
 
 def corrcoef(x):
-    dtype = x.dtype
-    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    x = convert_to_tensor(x, dtype)
+    x = convert_to_tensor(x)
+    x = tf.cast(x, dtypes.promote_to_float_dtype(x.dtype))
 
-    if tf.rank(x) == 0:
-        return tf.constant(float("nan"), dtype=config.floatx())
+    if x.shape.rank == 0:
+        return tf.constant(float("nan"), dtype=x.dtype)
     if x.shape.rank == 1:
         return tf.reshape(corrcoef(x[tf.newaxis, :]), [])
 
@@ -3888,14 +3786,11 @@ def correlate(x1, x2, mode="valid"):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
 
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
     )
-    if dtype == tf.int64:
-        dtype = tf.float64
-    elif dtype not in [tf.bfloat16, tf.float16, tf.float64]:
-        dtype = tf.float32
+    if "complex" in dtype:  # Unsupported: the imaginary part is discarded.
+        dtype = "float32"
 
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
@@ -4172,12 +4067,7 @@ def cov(x):
             f"Received: x.shape={x.shape}"
         )
 
-    dtype = standardize_dtype(x.dtype)
-    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    elif dtype == "int64":
-        dtype = "float64"
-    x = cast(x, dtype)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
 
     # A 0D input has no observations to vary over, as in `np.cov`.
     if len(x.shape) == 0:

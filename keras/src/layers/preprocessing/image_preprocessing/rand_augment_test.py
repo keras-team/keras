@@ -4,6 +4,7 @@ from tensorflow import data as tf_data
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 
 
 class RandAugmentTest(testing.TestCase):
@@ -33,7 +34,7 @@ class RandAugmentTest(testing.TestCase):
         self.assertAllClose(inputs, output)
 
     def test_rand_augment_basic(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_data = np.random.random((2, 8, 8, 3))
         else:
@@ -44,7 +45,7 @@ class RandAugmentTest(testing.TestCase):
         self.assertEqual(augmented_image.shape, input_data.shape)
 
     def test_rand_augment_no_operations(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_data = np.random.random((2, 8, 8, 3))
         else:
@@ -57,7 +58,7 @@ class RandAugmentTest(testing.TestCase):
         )
 
     def test_random_augment_randomness(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_data = np.random.random((2, 8, 8, 3))
         else:
@@ -71,7 +72,7 @@ class RandAugmentTest(testing.TestCase):
         )
 
     def test_tf_data_compatibility(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_data = np.random.random((2, 8, 8, 3))
         else:
@@ -83,7 +84,7 @@ class RandAugmentTest(testing.TestCase):
             output.numpy()
 
     def test_rand_augment_tf_data_bounding_boxes(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             image_shape = (1, 10, 8, 3)
         else:

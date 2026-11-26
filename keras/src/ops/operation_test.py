@@ -5,6 +5,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops import numpy as knp
@@ -392,7 +393,7 @@ class OperationTest(testing.TestCase):
         x = np.ones((2,))
         y = np.ones((2,))
         z = knp.ones((2,))  # mix
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             z = z.cpu()
         op = OpWithMultipleInputs()
         out = op(x, y, z)
@@ -469,11 +470,11 @@ class ElementwiseUnaryOperationTest(testing.TestCase):
         sym_int = KerasTensor((2, 3), dtype="int32")
         sym_out = op(sym_int)
         self.assertEqual(sym_out.shape, (2, 3))
-        self.assertEqual(sym_out.dtype, backend.floatx())
+        self.assertEqual(sym_out.dtype, config.floatx())
 
         sym_bool = KerasTensor((2, 3), dtype="bool")
         sym_out_bool = op(sym_bool)
-        self.assertEqual(sym_out_bool.dtype, backend.floatx())
+        self.assertEqual(sym_out_bool.dtype, config.floatx())
 
         sym_float16 = KerasTensor((2, 3), dtype="float16")
         sym_out_f16 = op(sym_float16)
@@ -485,7 +486,7 @@ class ElementwiseUnaryOperationTest(testing.TestCase):
                 "keras.src.ops."
             ) or cls.__module__.endswith("_test"):
                 continue
-            if cls.__name__ == "Imag" and backend.backend() == "torch":
+            if cls.__name__ == "Imag" and config.backend() == "torch":
                 continue
             op = cls(0.5, 0.0) if cls.__name__ == "Threshold" else cls()
             dt = "int32" if "Bitwise" in cls.__name__ else "float32"

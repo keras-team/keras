@@ -1,5 +1,3 @@
-# flake8: noqa
-
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -8,11 +6,12 @@ from tensorflow.python.eager import context
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.optimizers.sgd import SGD
 
 
 @pytest.mark.skipif(
-    backend.backend() != "tensorflow",
+    config.backend() != "tensorflow",
     reason="The distribute test can only run with TF backend.",
 )
 class OptimizerDistributeTest(testing.TestCase):
@@ -119,6 +118,7 @@ class OptimizerDistributeTest(testing.TestCase):
                 optimizer.apply_gradients(zip([first_grads], [x]))
 
         # fmt: off
+        # ruff: disable[E501]
         golden = np.array(
             [
                 [0.9980, 0.9960, 0.9940, 0.9920, 0.9900, 0.9880, 0.9860, 0.9840, 0.9820, 0.9800],
@@ -128,6 +128,7 @@ class OptimizerDistributeTest(testing.TestCase):
                 [0.9972, 0.9952, 0.9932, 0.9912, 0.9892, 0.9872, 0.9852, 0.9832, 0.9812, 0.9792],
             ]
         )
+        # ruff: enable[E501]
         # fmt: on
 
         self.strategy.run(update_grads)

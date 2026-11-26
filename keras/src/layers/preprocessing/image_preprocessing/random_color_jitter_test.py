@@ -3,6 +3,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -42,7 +43,7 @@ class RandomColorJitterTest(testing.TestCase):
         seed = 2390
         np.random.seed(seed)
 
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             inputs = np.random.random((12, 8, 16, 3))
         else:
@@ -62,7 +63,7 @@ class RandomColorJitterTest(testing.TestCase):
         seed = 2390
         np.random.seed(seed)
 
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             inputs = np.random.random((12, 8, 16, 3))
         else:
@@ -82,7 +83,7 @@ class RandomColorJitterTest(testing.TestCase):
         seed = 2390
         np.random.seed(seed)
 
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             inputs = np.random.random((12, 8, 16, 3))
         else:
@@ -100,7 +101,7 @@ class RandomColorJitterTest(testing.TestCase):
         seed = 2390
         np.random.seed(seed)
 
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             inputs = np.random.random((12, 8, 16, 3))
         else:
@@ -115,7 +116,7 @@ class RandomColorJitterTest(testing.TestCase):
         self.assertAllClose(output, sub_output)
 
     def test_tf_data_compatibility(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_data = np.random.random((2, 8, 8, 3))
         else:

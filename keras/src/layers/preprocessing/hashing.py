@@ -1,5 +1,5 @@
-from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.utils import argument_validation
@@ -154,7 +154,7 @@ class Hashing(Layer):
         # By default, output int32 when output_mode='int' and floats otherwise.
         if "dtype" not in kwargs or kwargs["dtype"] is None:
             kwargs["dtype"] = (
-                "int64" if output_mode == "int" else backend.floatx()
+                "int64" if output_mode == "int" else config.floatx()
             )
 
         super().__init__(**kwargs)

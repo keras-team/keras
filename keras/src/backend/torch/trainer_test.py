@@ -7,12 +7,12 @@ import torch.multiprocessing as mp
 from absl.testing import parameterized
 from torch._dynamo.utils import counters
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import metrics
 from keras.src import models
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.torch.distributed_test_utils import (
     TorchDistributedTestMixin,
 )
@@ -46,7 +46,7 @@ class TrainingAwareModel(models.Model):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch", reason="Requires torch backend"
+    config.backend() != "torch", reason="Requires torch backend"
 )
 @pytest.mark.no_pytest_xdist
 class TorchTrainerDistributionTest(TorchDistributedTestMixin, testing.TestCase):
@@ -237,7 +237,7 @@ def _distributed_metrics_worker(rank):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch", reason="Requires torch backend"
+    config.backend() != "torch", reason="Requires torch backend"
 )
 class TorchTrainerJitCompileTest(testing.TestCase):
     def test_jit_compile_with_frozen_weights(self):

@@ -1,6 +1,3 @@
-# flake8: noqa
-
-
 import numpy as np
 
 from keras.src import backend
@@ -68,6 +65,7 @@ class AdamWTest(testing.TestCase):
         first_grads = ops.full((10,), 0.01)
 
         # fmt: off
+        # ruff: disable[E501]
         golden = np.array(
             [[0.4998, 0.4998, 0.4998, 0.4998, 0.4998, 0.4998, 0.4998, 0.4998, 0.4998, 0.4998],
             [0.2486, 0.2475, 0.2463, 0.2451, 0.244, 0.2428, 0.2417, 0.2405, 0.2394, 0.2382],
@@ -75,6 +73,7 @@ class AdamWTest(testing.TestCase):
             [0.0586, 0.0549, 0.0512, 0.0475, 0.0439, 0.0402, 0.0366, 0.033, 0.0294, 0.0258],
             [0.0263, 0.0215, 0.0167, 0.012, 0.0073, 0.0026, -0.0021, -0.0067, -0.0113, -0.0159]]
         )
+        # ruff: enable[E501]
         # fmt: on
 
         optimizer.apply_gradients(zip([first_grads], [x]))

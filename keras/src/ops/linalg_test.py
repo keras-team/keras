@@ -5,6 +5,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops import linalg
@@ -531,7 +532,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
 
             # pivots are defined differently in tensorflow
             # compared to the other backends
-            if backend.backend() == "tensorflow":
+            if config.backend() == "tensorflow":
                 p_matrix = np.eye(m)[pivots]
             else:
                 p_matrix = _pivot_matrix(pivots, m)
@@ -552,7 +553,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
 
         m, n = 4, 3
         x = np.random.rand(m, n)
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             with self.assertRaises(ValueError):
                 linalg.lu_factor(x)
         else:
@@ -563,7 +564,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         # batched case
         m, n = 3, 4
         x = np.random.rand(2, m, n)
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             with self.assertRaises(ValueError):
                 linalg.lu_factor(x)
         else:
@@ -612,7 +613,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         if expected_error is not None:
             # Non-torch backends always throw a ValueError
             expected_error = (
-                expected_error if backend.backend() == "torch" else ValueError
+                expected_error if config.backend() == "torch" else ValueError
             )
             with self.assertRaises(expected_error):
                 linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)

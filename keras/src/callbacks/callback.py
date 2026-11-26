@@ -1,6 +1,6 @@
-from keras.src import backend
 from keras.src import utils
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 
 
 @keras_export("keras.callbacks.Callback")
@@ -76,7 +76,7 @@ class Callback:
 
     @property
     def model(self):
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             from torch.nn.parallel import DistributedDataParallel
 
             if isinstance(self._model, DistributedDataParallel):

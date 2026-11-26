@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import layers
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.export.saved_model import _list_variables_used_by_fns
 from keras.src.saving import serialization_lib
 from keras.src.utils.module_utils import tensorflow as tf
@@ -55,7 +56,7 @@ class TFSMLayer(layers.Layer):
         name=None,
         dtype=None,
     ):
-        if backend.backend() != "tensorflow":
+        if config.backend() != "tensorflow":
             raise NotImplementedError(
                 "The TFSMLayer is only currently supported with the "
                 "TensorFlow backend."

@@ -5,9 +5,9 @@ import pytest
 import torch
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.torch.ops import numpy as torch_numpy
 from keras.src.backend.torch.ops.core import get_device
 
@@ -53,7 +53,7 @@ def chunked(x1_shape, axis, sizes):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch",
+    config.backend() != "torch",
     reason="This test is only applicable to the PyTorch backend.",
 )
 class Int8ContractionTest(testing.TestCase):

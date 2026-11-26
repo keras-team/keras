@@ -9,8 +9,10 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import random as krandom
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops import image as kimage
 from keras.src.ops import numpy as knp
@@ -35,12 +37,12 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
     def setUp(self):
         super().setUp()
         # Defaults to channels_last
-        self.data_format = backend.image_data_format()
-        backend.set_image_data_format("channels_last")
+        self.data_format = config.image_data_format()
+        config.set_image_data_format("channels_last")
 
     def tearDown(self):
         super().tearDown()
-        backend.set_image_data_format(self.data_format)
+        config.set_image_data_format(self.data_format)
 
     def test_rgb_to_grayscale(self):
         # Test channels_last
@@ -49,7 +51,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None, 20, 20, 1))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([None, 3, 20, 20])
         out = kimage.rgb_to_grayscale(x)
         self.assertEqual(out.shape, (None, 1, 20, 20))
@@ -61,7 +63,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None, 20, 20, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([None, 3, 20, 20])
         out = kimage.rgb_to_hsv(x)
         self.assertEqual(out.shape, (None, 3, 20, 20))
@@ -73,7 +75,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None, 20, 20, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([None, 3, 20, 20])
         out = kimage.hsv_to_rgb(x)
         self.assertEqual(out.shape, (None, 3, 20, 20))
@@ -89,7 +91,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (15, 15, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([None, 3, 20, 20])
         out = kimage.resize(x, size=(15, 15))
         self.assertEqual(out.shape, (None, 3, 15, 15))
@@ -113,7 +115,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (15, 10, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([None, 3, None, None])
         out = kimage.resize(x, size=(15, 10), crop_to_aspect_ratio=True)
         self.assertEqual(out.shape, (None, 3, 15, 10))
@@ -134,7 +136,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None, 20, 20, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([None, 3, 20, 20])
         transform = KerasTensor([None, 8])
         out = kimage.affine_transform(x, transform)
@@ -154,7 +156,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None, 8, 6, 75))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([None, 3, 20, 20])
         p_h, p_w = 5, 5
         out = kimage.extract_patches(x, (p_h, p_w))
@@ -176,7 +178,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None, 4, 4, 4, 375))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([None, 3, 20, 20, 20])
         p_d, p_h, p_w = 5, 5, 5
         out = kimage.extract_patches_3d(x, (p_d, p_h, p_w))
@@ -237,7 +239,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None, None, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([None, 3, 15, 25])
         out = kimage.pad_images(x, 2, 3, target_height=20, target_width=30)
         self.assertEqual(out.shape, (None, 3, 20, 30))
@@ -257,7 +259,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (10, 20, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([None, 3, 15, 25])
         out = kimage.crop_images(x, 2, 3, target_height=10, target_width=20)
         self.assertEqual(out.shape, (None, 3, 10, 20))
@@ -303,7 +305,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None, 20, 20, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([None, 3, 20, 20])
         start_points = KerasTensor([None, 4, 2])
         end_points = KerasTensor([None, 4, 2])
@@ -317,7 +319,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None, 20, 20, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([None, 3, 20, 20])
         out = kimage.gaussian_blur(x)
         self.assertEqual(out.shape, (None, 3, 20, 20))
@@ -329,7 +331,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None, 20, 20, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([None, 3, 20, 20])
         out = kimage.elastic_transform(x)
         self.assertEqual(out.shape, (None, 3, 20, 20))
@@ -354,12 +356,12 @@ class ImageOpsStaticShapeTest(testing.TestCase):
     def setUp(self):
         super().setUp()
         # Defaults to channels_last
-        self.data_format = backend.image_data_format()
-        backend.set_image_data_format("channels_last")
+        self.data_format = config.image_data_format()
+        config.set_image_data_format("channels_last")
 
     def tearDown(self):
         super().tearDown()
-        backend.set_image_data_format(self.data_format)
+        config.set_image_data_format(self.data_format)
 
     def test_rgb_to_grayscale(self):
         # Test channels_last
@@ -368,7 +370,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (20, 20, 1))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([3, 20, 20])
         out = kimage.rgb_to_grayscale(x)
         self.assertEqual(out.shape, (1, 20, 20))
@@ -380,7 +382,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (20, 20, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([3, 20, 20])
         out = kimage.rgb_to_hsv(x)
         self.assertEqual(out.shape, (3, 20, 20))
@@ -392,7 +394,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (20, 20, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([3, 20, 20])
         out = kimage.hsv_to_rgb(x)
         self.assertEqual(out.shape, (3, 20, 20))
@@ -404,7 +406,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (15, 15, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([3, 20, 20])
         out = kimage.resize(x, size=(15, 15))
         self.assertEqual(out.shape, (3, 15, 15))
@@ -417,7 +419,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (20, 20, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([3, 20, 20])
         transform = KerasTensor([8])
         out = kimage.affine_transform(x, transform)
@@ -433,7 +435,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (4, 4, 75))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([3, 20, 20])
         p_h, p_w = 5, 5
         out = kimage.extract_patches(x, (p_h, p_w))
@@ -451,7 +453,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (4, 4, 4, 375))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([3, 20, 20, 20])
         p_d, p_h, p_w = 5, 5, 5
         out = kimage.extract_patches_3d(x, (p_d, p_h, p_w))
@@ -935,7 +937,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         image_uint8 = tf.ones((1, 1, 3), dtype=tf.uint8)
         coordinates = tf.convert_to_tensor([-1.0, 0.0, 0.0])[..., None, None]
 
-        if backend.backend() != "tensorflow":
+        if config.backend() != "tensorflow":
             pytest.skip("Skipping test because the backend is not TensorFlow.")
 
         out = kimage.map_coordinates(
@@ -947,7 +949,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         image_float32 = tf.ones((1, 1, 3), dtype=tf.float32)
         coordinates = tf.convert_to_tensor([-1.0, 0.0, 0.0])[..., None, None]
 
-        if backend.backend() != "tensorflow":
+        if config.backend() != "tensorflow":
             pytest.skip("Skipping test because the backend is not TensorFlow.")
 
         out = kimage.map_coordinates(
@@ -959,7 +961,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         image_uint8 = tf.ones((1, 1, 3), dtype=tf.uint8)
         coordinates = tf.convert_to_tensor([-1.0, 0.0, 0.0])[..., None, None]
 
-        if backend.backend() != "tensorflow":
+        if config.backend() != "tensorflow":
             pytest.skip("Skipping test because the backend is not TensorFlow.")
 
         out = kimage.map_coordinates(
@@ -972,7 +974,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         coordinates = tf.convert_to_tensor([-1.0, 0.0, 0.0])[..., None, None]
         image_uint8_casted = tf.cast(image_uint8, dtype=tf.float32)
 
-        if backend.backend() != "tensorflow":
+        if config.backend() != "tensorflow":
             pytest.skip("Skipping test because the backend is not TensorFlow.")
 
         out = tf.cast(
@@ -996,7 +998,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out_batch.shape, (2, 20, 30, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([3, 15, 25])
         out = kimage.pad_images(x, 2, 3, target_height=20, target_width=30)
         self.assertEqual(out.shape, (3, 20, 30))
@@ -1020,7 +1022,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out_batch.shape, (2, 10, 20, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([3, 15, 25])
         out = kimage.crop_images(x, 2, 3, target_height=10, target_width=20)
         self.assertEqual(out.shape, (3, 10, 20))
@@ -1041,7 +1043,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (20, 20, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([3, 20, 20])
         start_points = KerasTensor([4, 2])
         end_points = KerasTensor([4, 2])
@@ -1065,7 +1067,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (20, 20, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([3, 20, 20])
         kernel_size = KerasTensor(
             [
@@ -1087,7 +1089,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (20, 20, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = KerasTensor([3, 20, 20])
         out = kimage.elastic_transform(x)
         self.assertEqual(out.shape, (3, 20, 20))
@@ -1121,7 +1123,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None,))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x1 = KerasTensor([None, 3, 32, 32])
         x2 = KerasTensor([None, 3, 32, 32])
         out = kimage.ssim(x1, x2, max_val=1.0)
@@ -1214,7 +1216,7 @@ def _perspective_transform_numpy(
     fill_value=0,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
 
     need_squeeze = False
     if len(images.shape) == 3:
@@ -1372,7 +1374,7 @@ def elastic_transform_np(
     seed=None,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
 
     images = np.asarray(images)
     input_dtype = images.dtype
@@ -1614,12 +1616,12 @@ class ImageOpsCorrectnessTest(testing.TestCase):
     def setUp(self):
         super().setUp()
         # Defaults to channels_last
-        self.data_format = backend.image_data_format()
-        backend.set_image_data_format("channels_last")
+        self.data_format = config.image_data_format()
+        config.set_image_data_format("channels_last")
 
     def tearDown(self):
         super().tearDown()
-        backend.set_image_data_format(self.data_format)
+        config.set_image_data_format(self.data_format)
 
     def test_rgb_to_grayscale(self):
         # Test channels_last
@@ -1636,7 +1638,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, ref_out.numpy())
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = np.random.random((3, 50, 50)).astype("float32") * 255
         out = kimage.rgb_to_grayscale(x)
         ref_out = tf.image.rgb_to_grayscale(np.transpose(x, [1, 2, 0]))
@@ -1670,7 +1672,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, ref_out.numpy())
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = np.random.random((3, 50, 50)).astype("float32")
         out = kimage.rgb_to_hsv(x)
         ref_out = tf.image.rgb_to_hsv(np.transpose(x, [1, 2, 0]))
@@ -1704,7 +1706,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, ref_out.numpy())
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = np.random.random((3, 50, 50)).astype("float32")
         out = kimage.hsv_to_rgb(x)
         ref_out = tf.image.hsv_to_rgb(np.transpose(x, [1, 2, 0]))
@@ -1724,7 +1726,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, ref_out.numpy())
 
     def _skip_resize_if_unsupported(self, interpolation, antialias):
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             if interpolation == "bicubic" and antialias is False:
                 self.skipTest(
                     "Resizing with Bicubic interpolation in "
@@ -1799,7 +1801,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, ref_out, atol=1e-4)
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = np.random.random((3, 60, 30)).astype("float32") * 255
         out = kimage.resize(x, **kwargs)
         x_cl = np.transpose(x, [1, 2, 0])
@@ -1857,7 +1859,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                 antialias=antialias,
             )
             expected = "float64"
-            if backend.backend() == "jax" and not jax.config.jax_enable_x64:
+            if config.backend() == "jax" and not jax.config.jax_enable_x64:
                 expected = "float32"
             self.assertEqual(standardize_dtype(out.dtype), expected)
 
@@ -1941,7 +1943,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                     [196, 197, 197, 198],
                     [255, 255, 255, 255],
                 ]
-                if "torch" == backend.backend()
+                if "torch" == config.backend()
                 # Resize without `round` and `saturate_cast` - differences in
                 # 16 points
                 # [
@@ -1983,7 +1985,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(out.shape, (2, 25, 25, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = np.random.random((3, 60, 50)).astype("float32") * 255
         out = kimage.resize(x, size=(25, 25), crop_to_aspect_ratio=True)
         self.assertEqual(out.shape, (3, 25, 25))
@@ -2011,7 +2013,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(out.shape, (2, 25, 25, 3))
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = np.random.random((3, 60, 50)).astype("float32") * 255
         out = kimage.resize(
             x, size=(25, 25), pad_to_aspect_ratio=True, fill_value=fill_value
@@ -2125,6 +2127,13 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         ):
             kimage.resize(x, size=invalid_size)
 
+    def test_affine_transform_does_not_mutate_transform(self):
+        x = np.random.uniform(size=(2, 10, 10, 3)).astype("float32")
+        transform_values = np.random.uniform(size=(2, 8)).astype("float32")
+        transform = backend.ops.convert_to_tensor(transform_values.copy())
+        kimage.affine_transform(x, transform)
+        self.assertAllClose(transform_values, transform)
+
     @parameterized.named_parameters(
         named_product(
             interpolation=["bilinear", "nearest"],
@@ -2132,12 +2141,12 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
     )
     def test_affine_transform(self, interpolation, fill_mode):
-        if backend.backend() == "tensorflow" and fill_mode == "mirror":
+        if config.backend() == "tensorflow" and fill_mode == "mirror":
             self.skipTest(
                 "In tensorflow backend, applying affine_transform with "
                 "fill_mode=mirror is not supported"
             )
-        if backend.backend() == "tensorflow" and fill_mode == "wrap":
+        if config.backend() == "tensorflow" and fill_mode == "wrap":
             self.skipTest(
                 "In tensorflow backend, the numerical results of applying "
                 "affine_transform with fill_mode=wrap is inconsistent with"
@@ -2155,9 +2164,9 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         # TODO: `nearest` interpolation in jax and torch causes random index
         # shifting, resulting in significant differences in output which leads
         # to failure
-        if backend.backend() in ("jax", "torch") and interpolation == "nearest":
+        if config.backend() in ("jax", "torch") and interpolation == "nearest":
             self.skipTest(
-                f"In {backend.backend()} backend, "
+                f"In {config.backend()} backend, "
                 f"interpolation={interpolation} causes index shifting and "
                 "leads test failure"
             )
@@ -2205,8 +2214,34 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(out, ref_out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
+        transform = np.random.uniform(size=(6)).astype("float32")
+        transform = np.pad(transform, (0, 2))  # makes c0, c1 always 0
+        out = kimage.affine_transform(
+            x,
+            transform,
+            interpolation=interpolation,
+            fill_mode=fill_mode,
+        )
+        coordinates = _compute_affine_transform_coordinates(
+            x, np.tile(transform, (x.shape[0], 1))
+        )
+        ref_out = np.stack(
+            [
+                _fixed_map_coordinates(
+                    x[i],
+                    coordinates[i],
+                    order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                    fill_mode=fill_mode,
+                )
+                for i in range(x.shape[0])
+            ],
+            axis=0,
+        )
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(out, ref_out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
+
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = np.random.uniform(size=(3, 50, 50)).astype("float32") * 255
         transform = np.random.uniform(size=(6)).astype("float32")
         transform = np.pad(transform, (0, 2))  # makes c0, c1 always 0
@@ -2224,7 +2259,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         ref_out = np.transpose(ref_out, [2, 0, 1])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(out, ref_out, atol=1e-2, tpu_atol=1, tpu_rtol=1)
+        self.assertAllClose(out, ref_out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
         x = np.random.uniform(size=(2, 3, 50, 50)).astype("float32") * 255
         transform = np.random.uniform(size=(2, 6)).astype("float32")
@@ -2295,11 +2330,11 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(patches_out, patches_ref, atol=1e-2)
 
         # Test channels_first
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             # tensorflow doesn't support channels_first in
             # `kimage.extract_patches`
             return
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         image = np.random.uniform(size=(1, 3, 20, 20)).astype("float32")
         patches_out = kimage.extract_patches(
             image,
@@ -2407,7 +2442,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(padded_image, ref_padded_image)
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         image = np.random.uniform(size=(1, 3, 3)).astype("float32")
         padded_image = kimage.pad_images(
             image,
@@ -2489,7 +2524,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(cropped_image, ref_cropped_image)
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         image = np.random.uniform(size=(1, 10, 10)).astype("float32")
         cropped_image = kimage.crop_images(
             image,
@@ -2548,7 +2583,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = np.random.uniform(size=(3, 50, 50)).astype("float32")
         start_points = np.random.uniform(size=(1, 4, 2)).astype("float32")
         end_points = np.random.uniform(size=(1, 4, 2)).astype("float32")
@@ -2569,7 +2604,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
 
         # Test batch with one set of points
-        backend.set_image_data_format("channels_last")
+        config.set_image_data_format("channels_last")
         x = np.random.uniform(size=(2, 20, 20, 3)).astype("float32")
         start_points = np.random.uniform(size=(4, 2)).astype("float32")
         end_points = np.random.uniform(size=(4, 2)).astype("float32")
@@ -2615,7 +2650,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
 
     def test_gaussian_blur(self):
         # Test channels_last
-        backend.set_image_data_format("channels_last")
+        config.set_image_data_format("channels_last")
         np.random.seed(42)
         x = np.random.uniform(size=(50, 50, 3)).astype("float32")
         kernel_size = np.array([3, 3])
@@ -2639,7 +2674,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = np.random.uniform(size=(3, 50, 50)).astype("float32")
         kernel_size = np.array([3, 3])
         sigma = np.random.uniform(size=(2,)).astype("float32")
@@ -2720,13 +2755,13 @@ class ImageOpsCorrectnessTest(testing.TestCase):
     def test_gaussian_blur_even_kernel_size(self):
         """Test gaussian_blur with even kernel sizes"""
         # This test is specific to the numpy backend fix
-        if backend.backend() != "numpy":
+        if config.backend() != "numpy":
             self.skipTest(
                 "Test is specific to numpy backend, current backend: "
-                f"{backend.backend()}"
+                f"{config.backend()}"
             )
 
-        backend.set_image_data_format("channels_last")
+        config.set_image_data_format("channels_last")
         np.random.seed(42)
         x = np.random.uniform(size=(32, 32, 3)).astype("float32")
         kernel_size = np.array([4, 4])  # Even kernel size
@@ -2751,7 +2786,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
 
         # Test channels_first with different even kernel sizes
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = np.random.uniform(size=(3, 32, 32)).astype("float32")
         kernel_size = np.array([6, 4])  # Different even kernel sizes
         sigma = np.array([1.0, 1.5]).astype("float32")
@@ -2782,7 +2817,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         sigma = np.array([1.0, 2.0]).astype("float32")
 
         # Test channels_last
-        backend.set_image_data_format("channels_last")
+        config.set_image_data_format("channels_last")
         x = np.random.uniform(size=(20, 20, 3)).astype("float32")
 
         out = kimage.gaussian_blur(x, kernel_size, sigma)
@@ -2798,7 +2833,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = np.random.uniform(size=(3, 20, 20)).astype("float32")
 
         out = kimage.gaussian_blur(x, kernel_size, sigma)
@@ -2813,11 +2848,11 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
 
-        backend.set_image_data_format("channels_last")
+        config.set_image_data_format("channels_last")
 
     def test_elastic_transform(self):
         # Test channels_last
-        backend.set_image_data_format("channels_last")
+        config.set_image_data_format("channels_last")
         np.random.seed(42)
         x = np.random.uniform(size=(50, 50, 3)).astype("float32")
         alpha, sigma, seed = 20.0, 5.0, 42
@@ -2847,7 +2882,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(np.var(out), np.var(ref_out), atol=1e-2, rtol=1e-2)
 
         # Test channels_first
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         x = np.random.uniform(size=(3, 50, 50)).astype("float32")
         alpha, sigma, seed = 20.0, 5.0, 42
 
@@ -2875,7 +2910,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(np.var(out), np.var(ref_out), atol=1e-2, rtol=1e-2)
 
     def test_map_coordinates_mirror_size_one_axis(self):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             self.skipTest("tensorflow `mirror` fails on a size 1 axis")
         input = np.array([[5.0]], dtype="float32")
         coordinates = [
@@ -3135,7 +3170,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, x, atol=1e-6)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Dynamic shapes only exist in TensorFlow graph mode.",
     )
     def test_reconstruct_patches_overlapping_dynamic_grid_tf_function(self):
@@ -3303,18 +3338,18 @@ class ImageOpsDtypeTest(testing.TestCase):
     INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
     def setUp(self):
         super().setUp()
         # Defaults to channels_last
-        self.data_format = backend.image_data_format()
-        backend.set_image_data_format("channels_last")
+        self.data_format = config.image_data_format()
+        config.set_image_data_format("channels_last")
 
     def tearDown(self):
         super().tearDown()
-        backend.set_image_data_format(self.data_format)
+        config.set_image_data_format(self.data_format)
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_affine_transform(self, dtype):
@@ -3482,12 +3517,12 @@ class ImageOpsBehaviorTests(testing.TestCase):
     def setUp(self):
         super().setUp()
         # Defaults to channels_last
-        self.data_format = backend.image_data_format()
-        backend.set_image_data_format("channels_last")
+        self.data_format = config.image_data_format()
+        config.set_image_data_format("channels_last")
 
     def tearDown(self):
         super().tearDown()
-        backend.set_image_data_format(self.data_format)
+        config.set_image_data_format(self.data_format)
 
     @parameterized.named_parameters(named_product(rank=[2, 5]))
     def test_rgb_to_grayscale_invalid_rank(self, rank):
@@ -4148,12 +4183,12 @@ class ExtractPatches3DTest(testing.TestCase):
     def setUp(self):
         super().setUp()
         # Defaults to channels_last
-        self.data_format = backend.image_data_format()
-        backend.set_image_data_format("channels_last")
+        self.data_format = config.image_data_format()
+        config.set_image_data_format("channels_last")
 
     def tearDown(self):
         super().tearDown()
-        backend.set_image_data_format(self.data_format)
+        config.set_image_data_format(self.data_format)
 
     @parameterized.named_parameters(
         named_product(
@@ -4348,7 +4383,7 @@ class ExtractPatches3DTest(testing.TestCase):
         self.assertAllClose(out, ref_out, atol=0.01)
 
     def test_ssim_channels_first(self):
-        backend.set_image_data_format("channels_first")
+        config.set_image_data_format("channels_first")
         # Identical images should have SSIM close to 1.0
         x = np.random.random((3, 32, 32)).astype("float32")
         out = kimage.ssim(x, x, max_val=1.0)

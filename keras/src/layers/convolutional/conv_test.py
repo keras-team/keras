@@ -6,13 +6,13 @@ import pytest
 from absl.testing import parameterized
 from numpy.lib.stride_tricks import as_strided
 
-from keras.src import backend
 from keras.src import constraints
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 
 
 def _same_padding(input_size, kernel_size, stride):
@@ -651,7 +651,7 @@ class ConvBasicTest(testing.TestCase):
         layer.enable_lora(2)
         self.assertLen(layer.trainable_weights, 3)
         self.assertLen(layer.non_trainable_weights, 1)
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             self.assertLen(layer.torch_params, 4)
         self.assertDType(layer.lora_kernel_a, "float32")
         self.assertDType(layer.lora_kernel_b, "float32")

@@ -7,6 +7,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 
 
 class FlattenTest(testing.TestCase):
@@ -30,17 +31,17 @@ class FlattenTest(testing.TestCase):
             np.reshape(np.transpose(inputs, (0, 2, 3, 1)), (-1, 5 * 5 * 3))
         )
         if sparse:
-            if backend.backend() == "tensorflow":
+            if config.backend() == "tensorflow":
                 import tensorflow as tf
 
                 dense_to_sparse = tf.sparse.from_dense
-            elif backend.backend() == "jax":
+            elif config.backend() == "jax":
                 import jax.experimental.sparse as jax_sparse
 
                 dense_to_sparse = jax_sparse.BCOO.fromdense
             else:
                 self.fail(
-                    f"Sparse is unsupported with backend {backend.backend()}"
+                    f"Sparse is unsupported with backend {config.backend()}"
                 )
             inputs = dense_to_sparse(inputs)
             expected_output_channels_last = dense_to_sparse(
@@ -58,7 +59,7 @@ class FlattenTest(testing.TestCase):
             input_sparse=True,
             expected_output=(
                 expected_output_channels_last
-                if backend.config.image_data_format() == "channels_last"
+                if config.image_data_format() == "channels_last"
                 else expected_output_channels_first
             ),
             expected_output_sparse=sparse,

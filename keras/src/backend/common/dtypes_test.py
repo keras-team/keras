@@ -12,7 +12,7 @@ from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 from keras.src.testing.test_utils import x64_mode_scope
 
-X64_SUPPORTED = backend.backend() in config._X64_BACKENDS
+X64_SUPPORTED = config.backend() in config._X64_BACKENDS
 
 
 class DtypesTest(test_case.TestCase):
@@ -31,21 +31,14 @@ class DtypesTest(test_case.TestCase):
         )
         + dtypes.FLOAT8_TYPES  # Remove float8 dtypes for the following tests
     ] + [None]
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
-    elif backend.backend() == "tensorflow":
-        # TODO(hongyu): Re-enable uint32 tests once we determine how to handle
-        # dtypes.result_type(uint32, int*) -> int64 promotion.
-        # Since TF variables require int64 to be placed on the GPU, we
-        # exclusively enable the int64 dtype for TF. However, JAX does not
-        # natively support int64, which prevents us from comparing the dtypes.
-        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint32",)]
     if not backend.SUPPORTS_COMPLEX_DTYPES:
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("complex64",)]
 
     # The 64-bit dtypes, kept under `x64_mode="explicit_x64"`.
     X64_DTYPES = ["int64", "float64"]
-    if backend.backend() != "torch":  # No uint64 kernels in torch.
+    if config.backend() != "torch":  # No uint64 kernels in torch.
         X64_DTYPES += ["uint64"]
     if backend.SUPPORTS_COMPLEX_DTYPES:
         X64_DTYPES += ["complex128"]
@@ -97,56 +90,6 @@ class DtypesTest(test_case.TestCase):
         with x64_mode_scope("explicit_x64"):
             self.assert_result_type_matches_jax(dtype1, dtype2)
 
-    @parameterized.named_parameters(
-        named_product(
-            dtype=[
-                "int8",
-                "int16",
-                "int32",
-                "int64",
-                "uint8",
-                "uint16",
-                "uint32",
-            ]
-        )
-    )
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="TensorFlow only"
-    )
-    def test_result_type_with_int64(self, dtype):
-        # https://github.com/keras-team/keras/issues/21677
-        x1 = ops.ones((1,), dtype="int64")
-        x2 = ops.ones((1,), dtype=dtype)
-        out = result_type(x1.dtype, x2.dtype)
-        self.assertEqual(out, "int64")
-
-    @parameterized.named_parameters(
-        named_product(
-            dtype=[
-                "float16",
-                "bfloat16",
-                "float32",
-                "float64",
-                "int8",
-                "int16",
-                "int32",
-                "int64",
-                "uint8",
-                "uint16",
-            ]
-        )
-    )
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="TensorFlow only"
-    )
-    def test_result_type_with_float64(self, dtype):
-        # Float types have a similar issue as int64 in TF.:
-        # https://github.com/keras-team/keras/issues/21677
-        x1 = ops.ones((1,), dtype="float64")
-        x2 = ops.ones((1,), dtype=dtype)
-        out = result_type(x1.dtype, x2.dtype)
-        self.assertEqual(out, "float64")
-
     def test_result_type_with_none(self):
         import jax.numpy as jnp
 
@@ -156,20 +99,25 @@ class DtypesTest(test_case.TestCase):
         self.assertEqual(result_type(), "float32")
 
     def test_result_type_respects_floatx(self):
-        self.addCleanup(backend.set_floatx, backend.floatx())
-        backend.set_floatx("float32")
+        self.addCleanup(config.set_floatx, config.floatx())
+        config.set_floatx("float32")
         self.assertEqual(result_type(float), "float32")
         self.assertEqual(result_type(None), "float32")
-        backend.set_floatx("float16")
+        config.set_floatx("float16")
         self.assertEqual(result_type(float), "float16")
         self.assertEqual(result_type(None), "float16")
 
-    @pytest.mark.skipif(not X64_SUPPORTED, reason="Unsupported backend.")
+    @pytest.mark.skipif(
+        not X64_SUPPORTED or backend.backend() == "tensorflow",
+        reason="Needs both the `off` and `explicit_x64` modes.",
+    )
     def test_result_type_respects_x64_mode(self):
-        self.assertEqual(result_type("float64", "int32"), "float32")
+        with x64_mode_scope("off"):
+            self.assertEqual(result_type("float64", "int32"), "float32")
         with x64_mode_scope("explicit_x64"):
             self.assertEqual(result_type("float64", "int32"), "float64")
-        self.assertEqual(result_type("float64", "int32"), "float32")
+        with x64_mode_scope("off"):
+            self.assertEqual(result_type("float64", "int32"), "float32")
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow", reason="TensorFlow only"
@@ -359,3 +307,64 @@ class DtypesTest(test_case.TestCase):
             ValueError, "There is no implicit conversions from float8 dtypes"
         ):
             result_type("float8_e5m2", "bfloat16")
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_standardize_dtype(self, dtype):
+        x = backend.ops.convert_to_tensor(0.0, dtype)
+        actual = dtypes.standardize_dtype(x.dtype)
+        expected = config.floatx() if dtype is None else dtype
+        self.assertEqual(actual, expected)
+        # The second call is served from the cache.
+        self.assertEqual(dtypes.standardize_dtype(x.dtype), expected)
+
+    @parameterized.named_parameters(named_product(dtype=X64_DTYPES))
+    @pytest.mark.skipif(not X64_SUPPORTED, reason="Needs `explicit_x64`.")
+    def test_standardize_dtype_x64(self, dtype):
+        with x64_mode_scope("explicit_x64"):
+            x = backend.ops.convert_to_tensor(0.0, dtype)
+            actual = dtypes.standardize_dtype(x.dtype)
+            self.assertEqual(actual, dtype)
+
+    def test_standardize_dtype_int(self):
+        # TensorFlow keeps int32 variables on the CPU.
+        expected = "int64" if config.backend() == "tensorflow" else "int32"
+        self.assertEqual(dtypes.standardize_dtype(int), expected)
+        self.assertEqual(dtypes.standardize_dtype("int"), expected)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="TensorFlow only"
+    )
+    def test_standardize_dtype_does_not_confuse_tf_dtype_with_int(self):
+        # `tf.float32` hashes and compares equal to `1`, which is not a dtype.
+        import tensorflow as tf
+
+        self.assertEqual(dtypes.standardize_dtype(tf.float32), "float32")
+        with self.assertRaises(ValueError):
+            dtypes.standardize_dtype(1)
+
+    def test_result_type_weak_float_under_bfloat16_floatx(self):
+        default = config.floatx()
+        config.set_floatx("bfloat16")
+        try:
+            self.assertEqual(result_type(float), "bfloat16")
+            self.assertEqual(result_type("int32", float), "bfloat16")
+            self.assertEqual(dtypes.promote_to_float_dtype("int32"), "bfloat16")
+        finally:
+            config.set_floatx(default)
+
+    @parameterized.named_parameters(
+        ("int32", "int32", "float32", "float32"),
+        ("int64", "int64", "float32", "float64"),
+        ("uint64", "uint64", "float32", "float64"),
+        ("float16", "float16", "float16", "float16"),
+        ("float64", "float64", "float32", "float64"),
+    )
+    @pytest.mark.skipif(
+        not X64_SUPPORTED or config.backend() == "tensorflow",
+        reason="Needs `off` and `explicit_x64`.",
+    )
+    def test_promote_to_float_dtype(self, dtype, off, explicit_x64):
+        with x64_mode_scope("off"):
+            self.assertEqual(dtypes.promote_to_float_dtype(dtype), off)
+        with x64_mode_scope("explicit_x64"):
+            self.assertEqual(dtypes.promote_to_float_dtype(dtype), explicit_x64)

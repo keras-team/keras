@@ -1,5 +1,5 @@
-from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.layers.layer import Layer
 from keras.src.utils import argument_validation
 from keras.src.utils import backend_utils
@@ -88,7 +88,7 @@ class HashedCrossing(Layer):
             dtype = "int64"
 
         super().__init__(name=name, dtype=dtype)
-        if sparse and backend.backend() != "tensorflow":
+        if sparse and config.backend() != "tensorflow":
             raise ValueError(
                 "`sparse=True` can only be used with the TensorFlow backend."
             )

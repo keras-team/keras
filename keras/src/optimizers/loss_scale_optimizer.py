@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import initializers
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import StatelessScope
 from keras.src.optimizers import optimizer
 from keras.src.saving import serialization_lib
@@ -216,7 +217,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
                 self.build(trainable_variables)
             self.built = True
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             self._tf_apply(grads, trainable_variables)
         else:
             self._common_apply(grads, trainable_variables)

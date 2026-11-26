@@ -10,6 +10,7 @@ import tensorflow as tf
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend import distribution_lib as backend_dlib
 from keras.src.distribution import distribution_lib
 
@@ -50,7 +51,7 @@ def create_custom_layout():
 
 
 @pytest.mark.skipif(
-    backend.backend() not in ("jax", "torch"),
+    config.backend() not in ("jax", "torch"),
     reason="Only JAX and Torch have the backend to mock at the moment",
 )
 @mock.patch.object(
@@ -246,7 +247,7 @@ class DistributionTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() not in ("jax", "torch"),
+    config.backend() not in ("jax", "torch"),
     reason="Only JAX and Torch have the proper backend distribution lib",
 )
 class DataParallelDistributionTest(testing.TestCase):
@@ -385,7 +386,7 @@ class DataParallelDistributionTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() not in ("jax", "torch"),
+    config.backend() not in ("jax", "torch"),
     reason="Only JAX has the proper backend distribution lib",
 )
 class ModelParallelDistributionTest(testing.TestCase):
@@ -663,7 +664,7 @@ class LayoutMapTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() not in ("jax", "torch"),
+    config.backend() not in ("jax", "torch"),
     reason="Only JAX has the proper backend distribution lib",
 )
 @pytest.mark.multi_device
@@ -727,7 +728,7 @@ class DataShardingIntegrationTest(testing.TestCase):
 
 
 # @pytest.mark.skipif(
-#     backend.backend() != "tensorflow",
+#     config.backend() != "tensorflow",
 #     reason="Backend specific test",
 # )
 # class TensorflowDistributionLibTest(testing.TestCase):

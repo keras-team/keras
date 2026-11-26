@@ -199,13 +199,13 @@ class L1L2(Regularizer):
     def __call__(self, x):
         regularization = ops.convert_to_tensor(0.0, dtype=x.dtype)
         if self.l1 != 0.0:
-            regularization += ops.cast(self.l1, dtype=x.dtype) * ops.sum(
-                ops.absolute(x)
-            )
+            regularization = regularization + ops.cast(
+                self.l1, dtype=x.dtype
+            ) * ops.sum(ops.absolute(x))
         if self.l2 != 0.0:
-            regularization += ops.cast(self.l2, dtype=x.dtype) * ops.sum(
-                ops.square(x)
-            )
+            regularization = regularization + ops.cast(
+                self.l2, dtype=x.dtype
+            ) * ops.sum(ops.square(x))
         return regularization
 
     def get_config(self):

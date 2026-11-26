@@ -2,6 +2,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.layers.layer import Layer
 from keras.src.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 from keras.src.layers.rnn.stacked_rnn_cells import StackedRNNCells
@@ -337,7 +338,7 @@ class RNN(Layer):
             # with stateful=True. This prevents in-place modifications
             # that would otherwise break PyTorch's autograd functionality
             # by modifying tensors needed for gradient computation.
-            if backend.backend() == "torch" and self.stateful:
+            if config.backend() == "torch" and self.stateful:
                 states = tree.map_structure(ops.copy, states)
             output, new_states = self.cell(inputs, states, **cell_kwargs)
             if not tree.is_nested(new_states):

@@ -9,6 +9,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.utils import file_utils
 from keras.src.utils import io_utils
 from keras.src.utils.module_utils import grain
@@ -258,7 +259,7 @@ def _split_dataset_torch(
 def _infer_preferred_backend(dataset):
     """Infer the backend from the dataset type."""
     if isinstance(dataset, (list, tuple, np.ndarray)):
-        return backend.backend()
+        return config.backend()
     if is_tf_dataset(dataset):
         return "tensorflow"
     elif is_torch_dataset(dataset):
@@ -948,7 +949,6 @@ def labels_to_dataset_grain(labels, label_mode, num_classes):
     Returns:
         A `grain.MapDataset` instance.
     """
-    from keras.src import backend
     from keras.src import ops
 
     if label_mode not in ("binary", "categorical", "int"):

@@ -140,6 +140,10 @@ jobs:
         if: ${{ matrix.nnx_enabled == false }}
         run: pytest keras -m no_pytest_xdist -v --cov=keras --cov-config=pyproject.toml --cov-append
 
+      - name: Run Op Tests in explicit_x64 Mode
+        if: ${{ matrix.backend != 'tensorflow' && matrix.nnx_enabled == false }}
+        run: KERAS_X64_MODE=explicit_x64 pytest keras/src/ops -m op_test --cov=keras --cov-config=pyproject.toml --cov-append
+
       - name: Run Multi-Device Tests
         if: ${{ matrix.backend == 'jax' }}
         run: JAX_NUM_CPU_DEVICES=4 pytest keras -m multi_device --cov=keras --cov-config=pyproject.toml --cov-append

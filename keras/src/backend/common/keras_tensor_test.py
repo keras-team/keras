@@ -3,9 +3,9 @@ from unittest.mock import patch
 
 import numpy as np
 
-from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import keras_tensor
 from keras.src.utils.module_utils import tensorflow as tf
 
@@ -79,7 +79,7 @@ class KerasTensorTest(testing.TestCase):
         ):
             np.array(x)
 
-        if backend.backend() == "jax":
+        if config.backend() == "jax":
             from jax import numpy as jnp
 
             with self.assertRaisesRegex(

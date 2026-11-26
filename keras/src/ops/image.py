@@ -5,8 +5,9 @@ from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import is_int_dtype
-from keras.src.backend.common import result_type
+from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.dtypes import promote_to_float_dtype
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import compute_conv_output_shape
 
@@ -14,7 +15,7 @@ from keras.src.ops.operation_utils import compute_conv_output_shape
 class RGBToGrayscale(Operation):
     def __init__(self, data_format=None, *, name=None):
         super().__init__(name=name)
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, images):
         return backend.ops.image.rgb_to_grayscale(
@@ -87,7 +88,7 @@ def rgb_to_grayscale(images, data_format=None):
 class RGBToHSV(Operation):
     def __init__(self, data_format=None, *, name=None):
         super().__init__(name=name)
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, images):
         return backend.ops.image.rgb_to_hsv(
@@ -168,7 +169,7 @@ def rgb_to_hsv(images, data_format=None):
 class HSVToRGB(Operation):
     def __init__(self, data_format=None, *, name=None):
         super().__init__(name=name)
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, images):
         return backend.ops.image.hsv_to_rgb(
@@ -265,7 +266,7 @@ class Resize(Operation):
         self.pad_to_aspect_ratio = pad_to_aspect_ratio
         self.fill_mode = fill_mode
         self.fill_value = fill_value
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, images):
         return _resize(
@@ -455,7 +456,7 @@ class AffineTransform(Operation):
         self.interpolation = interpolation
         self.fill_mode = fill_mode
         self.fill_value = fill_value
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, images, transform):
         return backend.ops.image.affine_transform(
@@ -609,7 +610,7 @@ class ExtractPatches(Operation):
         self.strides = strides
         self.dilation_rate = dilation_rate
         self.padding = padding
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, images):
         return _extract_patches(
@@ -799,7 +800,7 @@ def _extract_patches_2d(
             "Invalid `size` argument. Expected an "
             f"int or a tuple of length 2. Received: size={size}"
         )
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if data_format == "channels_last":
         channels_in = images.shape[-1]
     elif data_format == "channels_first":
@@ -851,7 +852,7 @@ def _extract_patches_3d(
         strides = (strides, strides, strides)
     if len(strides) != 3:
         raise ValueError(f"Invalid `strides` argument. Got: {strides}")
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if data_format == "channels_last":
         channels_in = volumes.shape[-1]
     elif data_format == "channels_first":
@@ -966,7 +967,7 @@ class ReconstructPatches(Operation):
         self.is_3d = len(self.size) == 3
         self.strides = _standardize_reconstruct_strides(self.size, strides)
         self.padding = padding
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
         self.reduction = _validate_reconstruct_reduction(reduction)
         if self.output_size is None and self.padding != "valid":
             raise ValueError(
@@ -1413,7 +1414,7 @@ def _reconstruct_patches_2d(
             f"Received shape: {patches.shape}"
         )
     strides = _standardize_reconstruct_strides(size, strides)
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if output_size is None:
         if padding != "valid":
             raise ValueError(
@@ -1512,7 +1513,7 @@ def _reconstruct_patches_3d(
             f"Received shape: {patches.shape}"
         )
     strides = _standardize_reconstruct_strides(size, strides)
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if output_size is None:
         if padding != "valid":
             raise ValueError(
@@ -1777,7 +1778,7 @@ class PadImages(Operation):
         self.right_padding = right_padding
         self.target_height = target_height
         self.target_width = target_width
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, images):
         return _pad_images(
@@ -1954,7 +1955,7 @@ def _pad_images(
     target_width,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     images = backend.ops.convert_to_tensor(images)
     images_shape = ops.shape(images)
 
@@ -2042,7 +2043,7 @@ class CropImages(Operation):
         self.right_cropping = right_cropping
         self.target_height = target_height
         self.target_width = target_width
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, images):
         return _crop_images(
@@ -2229,7 +2230,7 @@ def _crop_images(
     target_width,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     images = backend.ops.convert_to_tensor(images)
     images_shape = ops.shape(images)
 
@@ -2316,7 +2317,7 @@ class PerspectiveTransform(Operation):
         super().__init__(name=name)
         self.interpolation = interpolation
         self.fill_value = fill_value
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, images, start_points, end_points):
         return backend.ops.image.perspective_transform(
@@ -2461,7 +2462,7 @@ class GaussianBlur(Operation):
         super().__init__(name=name)
         self.kernel_size = kernel_size
         self.sigma = sigma
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, images):
         return backend.ops.image.gaussian_blur(
@@ -2556,7 +2557,7 @@ class ElasticTransform(Operation):
         self.fill_mode = fill_mode
         self.fill_value = fill_value
         self.seed = seed
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, images):
         return backend.ops.image.elastic_transform(
@@ -2779,7 +2780,7 @@ def scale_and_translate(
 class SobelEdges(Operation):
     def __init__(self, data_format=None, *, name=None):
         super().__init__(name=name)
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, images):
         return backend.ops.image.sobel_edges(
@@ -2837,7 +2838,7 @@ def sobel_edges(images, data_format=None):
     if any_symbolic_tensors((images,)):
         return SobelEdges(data_format=data_format).symbolic_call(images)
     return backend.ops.image.sobel_edges(
-        images, data_format=backend.standardize_data_format(data_format)
+        images, data_format=standardize_data_format(data_format)
     )
 
 
@@ -2859,7 +2860,7 @@ class SSIM(Operation):
         self.filter_sigma = filter_sigma
         self.k1 = k1
         self.k2 = k2
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, image1, image2):
         return _ssim(
@@ -2992,13 +2993,13 @@ def _ssim(
     data_format=None,
 ):
     """Backend-agnostic SSIM implementation using Keras ops."""
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     image1 = backend.ops.convert_to_tensor(image1)
     image2 = backend.ops.convert_to_tensor(image2)
 
     # Ensure float dtype for computation
     original_dtype = image1.dtype
-    compute_dtype = result_type(image1.dtype, float)
+    compute_dtype = promote_to_float_dtype(image1.dtype)
     image1 = ops.cast(image1, compute_dtype)
     image2 = ops.cast(image2, compute_dtype)
 

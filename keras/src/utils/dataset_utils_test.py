@@ -6,7 +6,7 @@ import torch
 from absl.testing import parameterized
 from torch.utils.data import Dataset as TorchDataset
 
-from keras.src import backend
+from keras.src.backend import config
 from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 from keras.src.utils.dataset_utils import get_training_or_validation_split
@@ -81,7 +81,7 @@ class DatasetUtilsTest(test_case.TestCase):
         labels = np.random.sample((n_sample, 1))
         cardinality_function = (
             tf.data.Dataset.cardinality
-            if (backend.backend() != "torch" and preferred_backend != "torch")
+            if (config.backend() != "torch" and preferred_backend != "torch")
             else len
         )
 
@@ -122,7 +122,7 @@ class DatasetUtilsTest(test_case.TestCase):
         features2 = np.random.sample((n_sample, 10, 2))
         labels = np.random.sample((n_sample, 1))
 
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             create_dataset_function = tf.data.Dataset.from_tensor_slices
             cardinality_function = tf.data.Dataset.cardinality
         else:

@@ -5,16 +5,16 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend import distribution_lib as backend_dlib
 from keras.src.backend.jax import trainer as jax_trainer
 from keras.src.distribution import distribution_lib
 
 
-@pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+@pytest.mark.skipif(config.backend() != "jax", reason="JAX only")
 @pytest.mark.multi_device
 class JAXTrainerTest(testing.TestCase, parameterized.TestCase):
     def _make_distribution(self, dist_type):

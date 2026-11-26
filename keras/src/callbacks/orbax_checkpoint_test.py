@@ -10,6 +10,7 @@ from keras.src import models
 from keras.src import saving
 from keras.src import testing
 from keras.src import utils
+from keras.src.backend import config
 from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
 from keras.src.distribution import DeviceMesh
 from keras.src.distribution import LayoutMap
@@ -350,7 +351,7 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
             self.assertAllClose(orig, loaded)
 
     @pytest.mark.skipif(
-        backend.backend() != "jax",
+        config.backend() != "jax",
         reason="Requires JAX backend for distribution",
     )
     @pytest.mark.multi_device
@@ -436,7 +437,7 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
                     pass
 
     @pytest.mark.skipif(
-        backend.backend() != "jax",
+        config.backend() != "jax",
         reason="Requires JAX backend for distribution",
     )
     @pytest.mark.multi_device
@@ -726,7 +727,7 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(named_product(steps_per_execution=(1, 2)))
     @pytest.mark.requires_trainable_backend
     def test_training_resumption(self, steps_per_execution):
-        if backend.backend() == "torch" and steps_per_execution != 1:
+        if config.backend() == "torch" and steps_per_execution != 1:
             pytest.skip("steps_per_execution unsupported on torch")
 
         model = self._create_test_model(steps_per_execution)

@@ -531,6 +531,12 @@ class AWQIntegrationTest(testing.TestCase):
         model, structure = tiny_calibration_model(
             [
                 layers.Dense(embed_dim, activation="relu"),
+                # Gemma's `[heads, d_model, head_dim]` query projection,
+                # whose contracted axis does not lead the kernel.
+                layers.EinsumDense(
+                    "btd,ndh->btnh", output_shape=(seq_len, 2, 2)
+                ),
+                layers.Reshape((seq_len, embed_dim)),
                 layers.EinsumDense(
                     "abc,cd->abd", output_shape=(seq_len, embed_dim)
                 ),
@@ -585,6 +591,10 @@ class AWQIntegrationTest(testing.TestCase):
         self.assertTrue(hasattr(restored_dense, "quantized_kernel"))
         # A calibrated layer stores no config, so no structure either.
         self.assertIsNone(restored_dense.quantization_config)
+        # Stored by the model width: 4 rows of 4 columns packed to 2 bytes.
+        self.assertEqual(
+            tuple(restored_block.layers[1].quantized_kernel.shape), (4, 2)
+        )
 
 
 # Constants for end-to-end tests

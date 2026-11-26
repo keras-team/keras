@@ -2,6 +2,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.layers.preprocessing.index_lookup import listify_tensors
@@ -239,11 +240,11 @@ class TextVectorization(Layer):
                 "Layer TextVectorization requires TensorFlow. "
                 "Install it via `pip install tensorflow`."
             )
-        if sparse and backend.backend() != "tensorflow":
+        if sparse and config.backend() != "tensorflow":
             raise ValueError(
                 "`sparse=True` can only be used with the TensorFlow backend."
             )
-        if ragged and backend.backend() != "tensorflow":
+        if ragged and config.backend() != "tensorflow":
             raise ValueError(
                 "`ragged=True` can only be used with the TensorFlow backend."
             )
@@ -391,7 +392,7 @@ class TextVectorization(Layer):
         if self._output_mode == "int":
             output_dtype = "int64"
         else:
-            output_dtype = backend.floatx()
+            output_dtype = config.floatx()
         return KerasTensor(output_shape, dtype=output_dtype)
 
     def adapt(self, data, batch_size=None, steps=None):
@@ -584,10 +585,7 @@ class TextVectorization(Layer):
         ) and backend.ops.is_tensor(inputs):
             inputs = backend.ops.convert_to_numpy(inputs)
         with tf.device("CPU:0"):
-            if (
-                callable(self._standardize)
-                and backend.backend() != "tensorflow"
-            ):
+            if callable(self._standardize) and config.backend() != "tensorflow":
                 # On non-TensorFlow backends, hand the user-provided callable
                 # a NumPy array of unicode strings so it can use `np.char` /
                 # `np.strings` ops rather than `tf.strings` (which would

@@ -2,9 +2,9 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
@@ -409,10 +409,7 @@ class ConvTransposeBasicTest(testing.TestCase):
         input_shape,
         output_shape,
     ):
-        if (
-            data_format == "channels_first"
-            and backend.backend() == "tensorflow"
-        ):
+        if data_format == "channels_first" and config.backend() == "tensorflow":
             pytest.skip("channels_first unsupported on CPU with TF")
 
         self.run_layer_test(
@@ -872,7 +869,7 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
                 "`output_padding` greater than `strides` is not supported"
             )
 
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (1, 3, 1)
         else:
             input_shape = (1, 1, 3)
@@ -890,7 +887,7 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
             strides=strides,
             padding=padding,
             output_padding=output_padding,
-            data_format=backend.config.image_data_format(),
+            data_format=config.image_data_format(),
             dilation_rate=1,
         )
 
@@ -923,7 +920,7 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
         if output_padding is not None and output_padding >= strides:
             pytest.skip("`output_padding` must be less than `strides`")
 
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (None, None, 3)
             output_tensor_shape = (None, None, None, 2)
         else:

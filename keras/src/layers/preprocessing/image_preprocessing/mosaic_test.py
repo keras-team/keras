@@ -5,6 +5,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
 
 
@@ -64,7 +65,7 @@ class MosaicTest(testing.TestCase):
         self.assertAllClose(inputs, output)
 
     def test_unbatched_matches_batch_of_one(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         image = _to_data_format(
             np.random.random((1, 10, 12, 3)).astype("float32"), data_format
         )[0]
@@ -142,7 +143,7 @@ class MosaicTest(testing.TestCase):
             layers.Mosaic(offset=offset)
 
     def test_random_transformation(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         images = _to_data_format(np.random.random((4, 10, 12, 3)), data_format)
         layer = layers.Mosaic(offset=(0.3, 0.7), seed=1)
         transformation = layer.get_random_transformation({"images": images})
@@ -166,7 +167,7 @@ class MosaicTest(testing.TestCase):
         self.assertAllClose(pixels, np.round(pixels), atol=1e-4)
 
     def test_mosaic_basic(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Image `k` is filled with the value `k`.
         images = np.stack([np.full((4, 4, 1), k) for k in range(4)])
         images = _to_data_format(images.astype("float32"), data_format)
@@ -195,7 +196,7 @@ class MosaicTest(testing.TestCase):
         self.assertAllClose(output, expected_output)
 
     def test_mosaic_matches_reference(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         images = np.random.random((4, 10, 12, 3)).astype("float32")
         layer = layers.Mosaic(seed=1, data_format=data_format)
         inputs = _to_data_format(images, data_format)
@@ -230,7 +231,7 @@ class MosaicTest(testing.TestCase):
         self.assertAllClose(output, np.array([[0.46, 0.42, 0.12]] * 4))
 
     def test_mosaic_labels_match_pixel_area(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Image `k` is filled with the value `k` and has label `k`.
         images = np.stack([np.full((10, 12, 3), k) for k in range(4)])
         images = _to_data_format(images.astype("float32"), data_format)
@@ -249,7 +250,7 @@ class MosaicTest(testing.TestCase):
         self.assertAllClose(output["labels"], pixel_share, atol=1e-5)
 
     def test_mosaic_segmentation_masks(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         classes = np.array([1, 3, 4, 7], dtype="uint8")
         # Image `k` is filled with the value `k`, mask `k` with `classes[k]`.
         images = np.stack([np.full((10, 12, 3), k) for k in range(4)])
@@ -276,7 +277,7 @@ class MosaicTest(testing.TestCase):
         )
 
     def test_mosaic_bounding_boxes(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (4, 100, 100, 3)
         else:
@@ -317,7 +318,7 @@ class MosaicTest(testing.TestCase):
 
     def test_tf_data_compatibility(self):
         tf_data = pytest.importorskip("tensorflow").data
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         images = _to_data_format(np.random.random((8, 8, 8, 3)), data_format)
         labels = np.eye(4, dtype="float32")[np.arange(8) % 4]
         bounding_boxes = {
@@ -346,7 +347,7 @@ class MosaicTest(testing.TestCase):
 
     def test_grain_compatibility(self):
         grain = pytest.importorskip("grain")
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         images = _to_data_format(
             np.random.random((8, 8, 8, 3)).astype("float32"), data_format
         )
@@ -386,7 +387,7 @@ class MosaicTest(testing.TestCase):
             layer({"images": images, "labels": labels})
 
     def test_batch_of_one(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         images = np.random.random((1, 10, 12, 3)).astype("float32")
         labels = np.array([[0.0, 1.0, 0.0]], dtype="float32")
         layer = layers.Mosaic(seed=1, data_format=data_format)
@@ -414,7 +415,7 @@ class MosaicTest(testing.TestCase):
         ("full_range", (0.0, 1.0)),
     )
     def test_extreme_offsets(self, offset):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         images = np.random.random((4, 10, 12, 3)).astype("float32")
         labels = np.eye(4, dtype="float32")
         layer = layers.Mosaic(offset=offset, seed=1, data_format=data_format)
@@ -453,7 +454,7 @@ class MosaicTest(testing.TestCase):
         self.assertNotAllClose(output_1["images"], output_2["images"])
 
     def test_mixed_precision(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         layer = layers.Mosaic(
             seed=1, dtype="mixed_float16", data_format=data_format
         )
@@ -490,7 +491,7 @@ class MosaicTest(testing.TestCase):
         )
 
     def test_bounding_boxes_formats_agree(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         images = _to_data_format(
             np.random.random((4, 20, 20, 3)).astype("float32"), data_format
         )

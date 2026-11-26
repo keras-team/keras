@@ -6,6 +6,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import standardize_shape
 
@@ -432,19 +433,19 @@ class MergingLayersTest(testing.TestCase):
 
         # Merging a sparse tensor with a dense tensor, or a dense tensor with a
         # sparse tensor produces a dense tensor
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             x1 = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 3))
             x3 = tf.SparseTensor([[0, 0], [1, 1]], [4.0, 5.0], (2, 3))
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             # Use n_batch of 1 to be compatible with all ops.
             x1 = jax_sparse.BCOO(([[1.0, 2.0]], [[[0], [2]]]), shape=(2, 3))
             x3 = jax_sparse.BCOO(([[4.0, 5.0]], [[[0], [1]]]), shape=(2, 3))
         else:
-            self.fail(f"Sparse is unsupported with backend {backend.backend()}")
+            self.fail(f"Sparse is unsupported with backend {config.backend()}")
 
         x1_np = backend.ops.convert_to_numpy(x1)
         x2 = np.random.rand(2, 3)

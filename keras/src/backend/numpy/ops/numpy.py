@@ -3,7 +3,6 @@ import numpy as np
 from keras.src import tree
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
-from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import standardize_axis_for_numpy
@@ -104,12 +103,11 @@ def multiply(x1, x2):
 def mean(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        result_dtype = dtypes.result_type(x.dtype, "float32")
-    else:
-        result_dtype = ori_dtype
-    return np.mean(x, axis=axis, keepdims=keepdims).astype(result_dtype)
+    result_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, "float32")
+    return np.mean(x, axis=axis, keepdims=keepdims, dtype=compute_dtype).astype(
+        result_dtype
+    )
 
 
 def max(x, axis=None, keepdims=False, initial=None):
@@ -137,9 +135,7 @@ def abs(x):
 
 def fabs(x):
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if "int" in dtype or dtype == "bool":
-        x = x.astype(config.floatx())
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     return np.fabs(x)
 
 
@@ -194,50 +190,35 @@ def arange(start, stop=None, step=None, dtype=None):
 
 def arccos(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.arccos(x)
 
 
 def arccosh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.arccosh(x)
 
 
 def arcsin(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.arcsin(x)
 
 
 def arcsinh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.arcsinh(x)
 
 
 def arctan(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.arctan(x)
 
@@ -245,7 +226,9 @@ def arctan(x):
 def arctan2(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = x1.astype(dtype)
     x2 = x2.astype(dtype)
     return np.arctan2(x1, x2)
@@ -253,10 +236,7 @@ def arctan2(x1, x2):
 
 def arctanh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.arctanh(x)
 
@@ -309,11 +289,13 @@ def view(x, dtype=None):
 def average(x, axis=None, weights=None):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
-    dtypes_to_resolve = [x.dtype, float]
+    dtypes_to_resolve = [x.dtype]
     if weights is not None:
         weights = convert_to_tensor(weights)
         dtypes_to_resolve.append(weights.dtype)
-    dtype = dtypes.result_type(*dtypes_to_resolve)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(*dtypes_to_resolve)
+    )
     x = x.astype(dtype)
     if weights is not None:
         weights = weights.astype(dtype)
@@ -339,11 +321,9 @@ def heaviside(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
 
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    elif dtype in ["int64"]:
-        dtype = "float64"
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
 
     return np.heaviside(x1, x2).astype(dtype)
 
@@ -459,22 +439,13 @@ def broadcast_to(x, shape):
 
 def cbrt(x):
     x = convert_to_tensor(x)
-
-    dtype = standardize_dtype(x.dtype)
-    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    elif dtype == "int64":
-        dtype = "float64"
-
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.cbrt(x).astype(dtype)
 
 
 def ceil(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.ceil(x)
 
@@ -513,26 +484,22 @@ def copy(x):
 def copysign(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     return np.copysign(x1, x2).astype(dtype)
 
 
 def cos(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.cos(x)
 
 
 def cosh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.cosh(x)
 
@@ -606,27 +573,13 @@ def cumsum(x, axis=None, dtype=None):
 
 def deg2rad(x):
     x = convert_to_tensor(x)
-
-    if x.dtype in ["int64", "float64"]:
-        dtype = "float64"
-    elif x.dtype in ["bfloat16", "float16"]:
-        dtype = x.dtype
-    else:
-        dtype = config.floatx()
-
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.deg2rad(x).astype(dtype)
 
 
 def rad2deg(x):
     x = convert_to_tensor(x)
-
-    if x.dtype in ["int64", "float64"]:
-        dtype = "float64"
-    elif x.dtype in ["bfloat16", "float16"]:
-        dtype = x.dtype
-    else:
-        dtype = config.floatx()
-
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.rad2deg(x).astype(dtype)
 
 
@@ -686,17 +639,13 @@ def equal(x1, x2):
 
 def exp(x):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = x.astype(config.floatx())
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     return np.exp(x)
 
 
 def exp2(x):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = x.astype(config.floatx())
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     return np.exp2(x)
 
 
@@ -707,9 +656,7 @@ def expand_dims(x, axis):
 
 def expm1(x):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = x.astype(config.floatx())
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     return np.expm1(x)
 
 
@@ -728,11 +675,7 @@ def flipud(x):
 
 def floor(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.floor(x)
 
@@ -788,11 +731,9 @@ def hypot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
 
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    elif dtype in ["int64"]:
-        dtype = "float64"
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
 
     return np.hypot(x1, x2).astype(dtype)
 
@@ -808,12 +749,7 @@ def imag(x):
 
 def i0(x):
     x = convert_to_tensor(x)
-    dtype = (
-        "float64"
-        if standardize_dtype(x.dtype) in ["int64", "float64"]
-        else dtypes.result_type(x.dtype, float)
-    )
-    x = x.astype(dtype)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype))
     return np.i0(x)
 
 
@@ -871,7 +807,7 @@ def lcm(x1, x2):
 def ldexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x1.dtype)
 
     if standardize_dtype(x2.dtype) not in dtypes.INT_TYPES:
         raise TypeError(
@@ -913,48 +849,34 @@ def linspace(
 
 def log(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
-    return np.log(x, dtype=dtype)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
+    return np.log(x)
 
 
 def log10(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
-    return np.log10(x, dtype=dtype)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
+    return np.log10(x)
 
 
 def log1p(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
-    return np.log1p(x, dtype=dtype)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
+    return np.log1p(x)
 
 
 def log2(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
-    return np.log2(x, dtype=dtype)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
+    return np.log2(x)
 
 
 def logaddexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = x1.astype(dtype)
     x2 = x2.astype(dtype)
     return np.logaddexp(x1, x2)
@@ -963,7 +885,9 @@ def logaddexp(x1, x2):
 def logaddexp2(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     return np.logaddexp2(x1, x2).astype(dtype)
 
 
@@ -1027,7 +951,7 @@ def fmax(x1, x2):
 
 
 def median(x, axis=None, keepdims=False):
-    dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.median(x, axis=axis, keepdims=keepdims).astype(dtype)
 
 
@@ -1145,12 +1069,12 @@ def nanmax(x, axis=None, keepdims=False):
 
 
 def nanmean(x, axis=None, keepdims=False):
-    dtype = dtypes.result_type(standardize_dtype(x.dtype), float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.nanmean(x, axis=axis, keepdims=keepdims).astype(dtype)
 
 
 def nanmedian(x, axis=None, keepdims=False):
-    dtype = dtypes.result_type(standardize_dtype(x.dtype), float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.nanmedian(x, axis=axis, keepdims=keepdims).astype(dtype)
 
 
@@ -1166,10 +1090,7 @@ def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
         x = x.astype(config.floatx())
     if standardize_dtype(x.dtype) == "bool":
         x = x.astype(config.floatx())
-    if not is_float_dtype(x.dtype):
-        dtype = config.floatx()
-    else:
-        dtype = x.dtype
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.nanpercentile(
         x, q, axis=axis, method=method, keepdims=keepdims
     ).astype(dtype)
@@ -1193,7 +1114,7 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     ori_dtype = standardize_dtype(x.dtype)
     if ori_dtype == "bool":
         x = x.astype(config.floatx())
-    dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.nanquantile(
         x, q, axis=axis, method=method, keepdims=keepdims
     ).astype(dtype)
@@ -1202,8 +1123,8 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
 def nanstd(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    result_dtype = dtypes.result_type(x.dtype, float)
+    result_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, "float32")
     return np.nanstd(
         x, axis=axis, keepdims=keepdims, dtype=compute_dtype
     ).astype(result_dtype)
@@ -1223,8 +1144,8 @@ def nansum(x, axis=None, keepdims=False):
 def nanvar(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    result_dtype = dtypes.result_type(x.dtype, float)
+    result_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, "float32")
     return np.nanvar(
         x, axis=axis, keepdims=keepdims, dtype=compute_dtype
     ).astype(result_dtype)
@@ -1282,7 +1203,7 @@ def percentile(x, q, axis=None, method="linear", keepdims=False):
     ori_dtype = standardize_dtype(x.dtype)
     if ori_dtype == "bool":
         x = x.astype(config.floatx())
-    dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.percentile(
         x, q, axis=axis, method=method, keepdims=keepdims
     ).astype(dtype)
@@ -1312,10 +1233,7 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
     # np.quantile doesn't support bool
     if ori_dtype == "bool":
         x = x.astype(config.floatx())
-    if ori_dtype == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.quantile(
         x, q, axis=axis, method=method, keepdims=keepdims
     ).astype(dtype)
@@ -1337,6 +1255,8 @@ def real(x):
 
 
 def reciprocal(x):
+    x = convert_to_tensor(x)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     return np.reciprocal(x)
 
 
@@ -1378,30 +1298,21 @@ def signbit(x):
 
 def sin(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.sin(x)
 
 
 def sinc(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.sinc(x).astype(dtype)
 
 
 def sinh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.sinh(x)
 
@@ -1437,9 +1348,7 @@ def stack(x, axis=0):
 def std(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = x.astype(config.floatx())
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     return np.std(x, axis=axis, keepdims=keepdims)
 
 
@@ -1459,20 +1368,14 @@ def take_along_axis(x, indices, axis=None):
 
 def tan(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.tan(x)
 
 
 def tanh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.tanh(x)
 
@@ -1587,10 +1490,11 @@ def divide(x1, x2):
         x1 = convert_to_tensor(x1)
     if not isinstance(x2, (int, float)):
         x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-        float,
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
@@ -1602,16 +1506,17 @@ def divide_no_nan(x1, x2):
         x1 = convert_to_tensor(x1)
     if not isinstance(x2, (int, float)):
         x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-        float,
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
-    # No need for the double-where trick since we don't calculate gradients in
-    # numpy backend.
-    return np.where(x2 == 0, np.array(0, dtype=dtype), np.divide(x1, x2))
+    x2_is_zero = x2 == 0
+    safe_x2 = np.where(x2_is_zero, 1, x2)
+    return np.where(x2_is_zero, 0, np.divide(x1, safe_x2))
 
 
 def true_divide(x1, x2):
@@ -1635,7 +1540,9 @@ def power(x1, x2):
 def float_power(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     return np.float_power(x1, x2).astype(dtype)
 
 
@@ -1646,7 +1553,9 @@ def negative(x):
 def nextafter(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
 
     return np.nextafter(x1, x2).astype(dtype)
 
@@ -1660,13 +1569,8 @@ def square(x):
 
 def sqrt(x):
     x = convert_to_tensor(x)
-    # upcast to float64 for int64 which matches JAX's behavior
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
-    return np.sqrt(x, dtype=dtype)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
+    return np.sqrt(x)
 
 
 def squeeze(x, axis=None):
@@ -1681,7 +1585,7 @@ def transpose(x, axes=None):
 
 def trapezoid(y, x=None, dx=1.0, axis=-1):
     y = convert_to_tensor(y)
-    result_dtype = dtypes.result_type(y.dtype, float)
+    result_dtype = dtypes.promote_to_float_dtype(y.dtype)
     if x is not None:
         x = convert_to_tensor(x)
     dx = convert_to_tensor(dx)
@@ -1699,8 +1603,8 @@ def vander(x, N=None, increasing=False):
 def var(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    result_dtype = dtypes.result_type(x.dtype, float)
+    result_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, "float32")
     return np.var(x, axis=axis, keepdims=keepdims, dtype=compute_dtype).astype(
         result_dtype
     )
@@ -1708,6 +1612,7 @@ def var(x, axis=None, keepdims=False):
 
 def sum(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
+    x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
     # follow jax's rule
     if dtype in ("bool", "int8", "int16"):
@@ -1740,28 +1645,19 @@ def logical_xor(x1, x2):
 
 
 def corrcoef(x):
-    if x.dtype in ["int64", "float64"]:
-        dtype = "float64"
-    elif x.dtype in ["bfloat16", "float16"]:
-        dtype = x.dtype
-    else:
-        dtype = config.floatx()
-
     x = convert_to_tensor(x)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
 
     return np.corrcoef(x).astype(dtype)
 
 
 def correlate(x1, x2, mode="valid"):
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
     )
-    if dtype == "int64":
-        dtype = "float64"
-    elif dtype not in ["bfloat16", "float16", "float64"]:
-        dtype = "float32"
-
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
     return np.correlate(x1, x2, mode)
@@ -1863,11 +1759,6 @@ def column_stack(xs):
 def cov(x):
     x = convert_to_tensor(x)
 
-    if x.dtype in ["int64", "float64"]:
-        dtype = "float64"
-    elif x.dtype in ["bfloat16", "float16", "complex64", "complex128"]:
-        dtype = x.dtype
-    else:
-        dtype = config.floatx()
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
 
     return np.cov(x).astype(dtype)

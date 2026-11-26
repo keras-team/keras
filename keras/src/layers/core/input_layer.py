@@ -2,6 +2,7 @@ import warnings
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common import standardize_shape
@@ -100,13 +101,13 @@ class InputLayer(Layer):
         self.sparse = bool(sparse)
         if self.sparse and not backend.SUPPORTS_SPARSE_TENSORS:
             raise ValueError(
-                f"`sparse=True` is not supported with the {backend.backend()} "
+                f"`sparse=True` is not supported with the {config.backend()} "
                 "backend"
             )
         self.ragged = bool(ragged)
         if self.ragged and not backend.SUPPORTS_RAGGED_TENSORS:
             raise ValueError(
-                f"`ragged=True` is not supported with the {backend.backend()} "
+                f"`ragged=True` is not supported with the {config.backend()} "
                 "backend"
             )
 

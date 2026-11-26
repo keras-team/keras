@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -28,7 +28,7 @@ class CanaryLayer(layers.Layer):
 
 class PipelineTest(testing.TestCase):
     def test_basics(self):
-        run_training_check = False if backend.backend() == "numpy" else True
+        run_training_check = False if config.backend() == "numpy" else True
         self.run_layer_test(
             layers.Pipeline,
             init_kwargs={
@@ -52,7 +52,7 @@ class PipelineTest(testing.TestCase):
         self.assertTrue(pipeline.layers[1].received_mask)
 
     def test_tf_data_compatibility(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (2, 10, 12, 3)
             output_shape = (2, 8, 9, 3)
         else:
@@ -71,7 +71,7 @@ class PipelineTest(testing.TestCase):
         self.assertEqual(tuple(output.shape), output_shape)
 
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        config.backend() == "torch",
         reason="Fails on CI, passes locally. TODO: debug",
     )
     def test_from_config(self):

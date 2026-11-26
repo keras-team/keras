@@ -13,6 +13,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.backend.torch.ops.core import get_device
 from keras.src.testing.test_utils import named_product
 
@@ -89,7 +90,7 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch",
+    config.backend() != "torch",
     reason="`export_torch` only supports the PyTorch backend.",
 )
 class ExportTorchTest(testing.TestCase):

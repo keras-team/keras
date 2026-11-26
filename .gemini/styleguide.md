@@ -238,7 +238,7 @@ Flag the following in the diff:
   `@parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))`.
 - **Leaked test flag**: a test calls `_set_use_backend_agnostic_ops(...)`
   without immediately registering
-  `self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)`.
+  `self.addCleanup(config._set_use_backend_agnostic_ops, False)`.
   A failing assertion then silently changes the behavior of every subsequent
   test in the process. Also flag new tests that reset the flag in a
   `try`/`finally` block and suggest `self.addCleanup` instead.

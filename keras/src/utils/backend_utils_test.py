@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
 from keras.src.utils import backend_utils
 
@@ -96,14 +96,14 @@ class BackendUtilsTest(testing.TestCase):
         self.assertFalse(backend_utils.in_tf_graph())
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Requires the TensorFlow backend.",
     )
     def test_in_tf_graph_false_when_executing_eagerly(self):
         self.assertFalse(backend_utils.in_tf_graph())
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Requires the TensorFlow backend.",
     )
     def test_in_tf_graph_true_inside_tf_function(self):

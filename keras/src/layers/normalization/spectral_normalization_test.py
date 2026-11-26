@@ -1,11 +1,11 @@
 import numpy as np
 import pytest
 
-from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
+from keras.src.backend import config
 
 
 class SpectralNormalizationTest(testing.TestCase):
@@ -62,7 +62,7 @@ class SpectralNormalizationTest(testing.TestCase):
             layer(inputs)
 
     def test_apply_layer(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             images = np.ones((1, 2, 2, 1))
         else:
             images = np.ones((1, 1, 2, 2))

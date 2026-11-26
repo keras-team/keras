@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.trainers.data_adapters.data_adapter_utils import (
     DistributedBatchSampler,
 )
@@ -19,7 +19,7 @@ from keras.src.trainers.data_adapters.data_adapter_utils import (
 
 
 class TestDistributedBatchSampler(testing.TestCase):
-    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    @pytest.mark.skipif(config.backend() != "torch", reason="torch only")
     def test_basic_sharding(self):
         # 10 batches total
         batch_sampler = list(range(10))
@@ -39,7 +39,7 @@ class TestDistributedBatchSampler(testing.TestCase):
         self.assertEqual(list(sampler1), [1, 3, 5, 7, 9])
         self.assertEqual(len(sampler1), 5)
 
-    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    @pytest.mark.skipif(config.backend() != "torch", reason="torch only")
     def test_uneven_sharding(self):
         # 11 batches total
         batch_sampler = list(range(11))
@@ -66,7 +66,7 @@ class TestDistributedBatchSampler(testing.TestCase):
         self.assertEqual(list(sampler2), [2, 5, 8])
         self.assertEqual(len(sampler2), 3)
 
-    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    @pytest.mark.skipif(config.backend() != "torch", reason="torch only")
     def test_drop_last(self):
         # 11 batches total
         batch_sampler = list(range(11))
@@ -167,7 +167,7 @@ class TestClassWeightToSampleWeights(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "integer keys"):
             class_weight_to_sample_weights(y, {None: 0.5})
 
-    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    @pytest.mark.skipif(config.backend() != "torch", reason="torch only")
     def test_class_weight_to_sample_weights_torch_specific(self):
         import torch
 
@@ -184,7 +184,7 @@ class TestClassWeightToSampleWeights(testing.TestCase):
             np.array([1.0, 2.0, 1.0, 3.0]),
         )
 
-    @pytest.mark.skipif(backend.backend() != "jax", reason="jax only")
+    @pytest.mark.skipif(config.backend() != "jax", reason="jax only")
     def test_class_weight_to_sample_weights_jax_specific(self):
         import jax
 
@@ -202,7 +202,7 @@ class TestClassWeightToSampleWeights(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="tensorflow only"
+        config.backend() != "tensorflow", reason="tensorflow only"
     )
     def test_class_weight_to_sample_weights_tf_specific(self):
         import tensorflow as tf

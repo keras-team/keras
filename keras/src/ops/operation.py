@@ -6,6 +6,7 @@ from keras.src import backend
 from keras.src import dtype_policies
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import dtypes
@@ -168,7 +169,7 @@ class Operation(KerasSaveable):
         to manually implement `get_config()`.
         """
         instance = super(Operation, cls).__new__(cls)
-        if backend.backend() == "jax" and is_nnx_enabled():
+        if config.backend() == "jax" and is_nnx_enabled():
             from flax import nnx
 
             try:

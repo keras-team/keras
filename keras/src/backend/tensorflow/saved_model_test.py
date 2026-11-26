@@ -7,13 +7,13 @@ import pytest
 import tensorflow as tf
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import metrics
 from keras.src import models
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.saving import object_registration
 from keras.src.testing.test_utils import named_product
 
@@ -49,7 +49,7 @@ class CustomSignatureModel(models.Model):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "tensorflow",
+    config.backend() != "tensorflow",
     reason="The SavedModel test can only run with TF backend.",
 )
 class SavedModelTest(testing.TestCase):

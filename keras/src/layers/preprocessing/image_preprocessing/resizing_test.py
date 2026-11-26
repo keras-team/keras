@@ -7,6 +7,7 @@ from keras.src import Sequential
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.testing.test_utils import named_product
 from keras.src.utils.module_utils import tensorflow as tf
 
@@ -144,7 +145,7 @@ class ResizingTest(testing.TestCase):
         self.assertAllClose(out, ref_out)
 
     def test_tf_data_compatibility(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (2, 10, 12, 3)
             output_shape = (2, 8, 9, 3)
         else:
@@ -157,7 +158,7 @@ class ResizingTest(testing.TestCase):
         self.assertEqual(tuple(output.shape), output_shape)
 
     def test_grain_compatibility(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (2, 10, 12, 3)
             output_shape = (2, 8, 9, 3)
         else:
@@ -177,21 +178,21 @@ class ResizingTest(testing.TestCase):
         self.assertEqual(tuple(output_np.shape), output_shape)
         self.assertTrue(backend.ops.is_tensor(output))
         # Ensure the device of the data is on CPU.
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             self.assertIn("CPU", str(output.device).upper())
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             self.assertIn("CPU", str(output.device).upper())
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             self.assertEqual("cpu", str(output.device))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Sequential + tf.data only works with TF backend",
     )
     def test_tf_data_compatibility_sequential(self):
         # Test compatibility when wrapping in a Sequential
         # https://github.com/keras-team/keras/issues/347
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (2, 10, 12, 3)
             output_shape = (2, 8, 9, 3)
         else:
@@ -240,7 +241,7 @@ class ResizingTest(testing.TestCase):
     def test_resize_bounding_boxes(
         self, pad_to_aspect_ratio, crop_to_aspect_ratio, expected_boxes
     ):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             image_shape = (10, 8, 3)
         else:
             image_shape = (3, 10, 8)
@@ -288,7 +289,7 @@ class ResizingTest(testing.TestCase):
     def test_resize_tf_data_bounding_boxes(
         self, pad_to_aspect_ratio, crop_to_aspect_ratio, expected_boxes
     ):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             image_shape = (1, 10, 8, 3)
         else:
             image_shape = (1, 3, 10, 8)

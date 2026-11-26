@@ -1,9 +1,9 @@
 import warnings
 
-from keras.src import backend
 from keras.src import layers
 from keras.src.api_export import keras_export
 from keras.src.applications import imagenet_utils
+from keras.src.backend import config
 from keras.src.backend.common import is_keras_tensor
 from keras.src.models import Functional
 from keras.src.ops import operation_utils
@@ -132,7 +132,7 @@ def MobileNetV2(
     # If both input_shape and input_tensor are used, they should match
     if input_shape is not None and input_tensor is not None:
         if is_keras_tensor(input_tensor):
-            if backend.image_data_format() == "channels_first":
+            if config.image_data_format() == "channels_first":
                 if input_tensor.shape[1] != input_shape[1]:
                     raise ValueError(
                         "input_shape[1] must equal shape(input_tensor)[1] "
@@ -160,7 +160,7 @@ def MobileNetV2(
         if input_shape is None and not is_keras_tensor(input_tensor):
             default_size = 224
         elif input_shape is None and is_keras_tensor(input_tensor):
-            if backend.image_data_format() == "channels_first":
+            if config.image_data_format() == "channels_first":
                 rows = input_tensor.shape[2]
                 cols = input_tensor.shape[3]
             else:
@@ -178,7 +178,7 @@ def MobileNetV2(
 
     # If input_shape is not None, assume default size.
     else:
-        if backend.image_data_format() == "channels_first":
+        if config.image_data_format() == "channels_first":
             rows = input_shape[1]
             cols = input_shape[2]
         else:
@@ -194,12 +194,12 @@ def MobileNetV2(
         input_shape,
         default_size=default_size,
         min_size=32,
-        data_format=backend.image_data_format(),
+        data_format=config.image_data_format(),
         require_flatten=include_top,
         weights=weights,
     )
 
-    if backend.image_data_format() == "channels_last":
+    if config.image_data_format() == "channels_last":
         row_axis, col_axis = (0, 1)
     else:
         row_axis, col_axis = (1, 2)
@@ -233,7 +233,7 @@ def MobileNetV2(
         else:
             img_input = input_tensor
 
-    channel_axis = 1 if backend.image_data_format() == "channels_first" else -1
+    channel_axis = 1 if config.image_data_format() == "channels_first" else -1
 
     first_block_filters = _make_divisible(32 * alpha, 8)
     x = layers.Conv2D(
@@ -377,7 +377,7 @@ def MobileNetV2(
 
 def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
     """Inverted ResNet block."""
-    channel_axis = 1 if backend.image_data_format() == "channels_first" else -1
+    channel_axis = 1 if config.image_data_format() == "channels_first" else -1
 
     in_channels = inputs.shape[channel_axis]
     pointwise_conv_filters = int(filters * alpha)

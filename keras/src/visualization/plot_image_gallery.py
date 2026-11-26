@@ -2,9 +2,9 @@ import math
 
 import numpy as np
 
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
@@ -117,7 +117,7 @@ def plot_image_gallery(
         )
 
     show = show if show is not None else (path is None)
-    data_format = data_format or backend.image_data_format()
+    data_format = data_format or config.image_data_format()
 
     batch_size = ops.shape(images)[0] if len(ops.shape(images)) == 4 else 1
 

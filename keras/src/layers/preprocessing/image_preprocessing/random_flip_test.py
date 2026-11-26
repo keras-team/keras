@@ -7,6 +7,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 from keras.src import utils
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -33,7 +34,7 @@ class RandomFlipTest(testing.TestCase):
         ("random_flip_both", "horizontal_and_vertical"),
     )
     def test_random_flip(self, mode):
-        run_training_check = False if backend.backend() == "numpy" else True
+        run_training_check = False if config.backend() == "numpy" else True
         self.run_layer_test(
             layers.RandomFlip,
             init_kwargs={
@@ -46,7 +47,7 @@ class RandomFlipTest(testing.TestCase):
         )
 
     def test_random_flip_horizontal(self):
-        run_training_check = False if backend.backend() == "numpy" else True
+        run_training_check = False if config.backend() == "numpy" else True
         utils.set_random_seed(0)
         # Test 3D input: shape (1*2*3)
         self.run_layer_test(
@@ -88,7 +89,7 @@ class RandomFlipTest(testing.TestCase):
         )
 
     def test_random_flip_vertical(self):
-        run_training_check = False if backend.backend() == "numpy" else True
+        run_training_check = False if config.backend() == "numpy" else True
         utils.set_random_seed(0)
         # Test 3D input: shape (2*1*3)
         self.run_layer_test(
@@ -189,7 +190,7 @@ class RandomFlipTest(testing.TestCase):
         ),
     )
     def test_random_flip_bounding_boxes(self, mode, expected_boxes):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             image_shape = (10, 8, 3)
         else:
@@ -242,7 +243,7 @@ class RandomFlipTest(testing.TestCase):
         ),
     )
     def test_random_flip_tf_data_bounding_boxes(self, mode, expected_boxes):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             image_shape = (1, 10, 8, 3)
         else:

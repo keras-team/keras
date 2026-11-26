@@ -10,6 +10,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.callbacks.callback import Callback
 from keras.src.layers import Embedding
 from keras.src.optimizers import Optimizer
@@ -181,19 +182,19 @@ class TensorBoard(Callback):
         self.embeddings_freq = embeddings_freq
         self.embeddings_metadata = embeddings_metadata
         if profile_batch:
-            if backend.backend() not in ("jax", "tensorflow"):
+            if config.backend() not in ("jax", "tensorflow"):
                 # TODO: profiling not available in torch, numpy
                 raise ValueError(
                     "Profiling is not yet available with the "
-                    f"{backend.backend()} backend. Please open a PR "
+                    f"{config.backend()} backend. Please open a PR "
                     "if you'd like to add this feature. Received: "
                     f"profile_batch={profile_batch} (must be 0)"
                 )
-            elif backend.backend() == "jax":
+            elif config.backend() == "jax":
                 if sys.version_info[1] < 12:
                     warnings.warn(
                         "Profiling with the "
-                        f"{backend.backend()} backend requires python >= 3.12."
+                        f"{config.backend()} backend requires python >= 3.12."
                     )
                     profile_batch = 0
 
@@ -647,7 +648,7 @@ class TensorBoard(Callback):
                 shape = w_img.shape
             w_img = ops.reshape(w_img, [1, shape[0], shape[1], 1])
         elif len(shape) == 3:  # ConvNet case
-            if backend.image_data_format() == "channels_last":
+            if config.image_data_format() == "channels_last":
                 # Switch to channels_first to display every kernel as a separate
                 # image.
                 w_img = ops.transpose(w_img, [2, 0, 1])

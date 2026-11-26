@@ -8,12 +8,12 @@ import pytest
 from absl.testing import parameterized
 
 from keras.src import activations
-from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.calibration_run import CalibrationRun
 from keras.src.quantizers.calibration_run import _execution_stages
@@ -649,6 +649,23 @@ class CalibrationRunTest(testing.TestCase):
                 calibrate_layer(layer, calibration_config(mode), solve=False)
 
     @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
+    def test_equation_without_a_view_is_refused_before_the_layer_changes(
+        self, mode
+    ):
+        layer = layers.EinsumDense("abc,cd->ad", output_shape=(5,))
+        layer.build((None, 3, 8))
+        weights = [ops.convert_to_numpy(w) for w in layer.weights]
+        with self.assertRaisesRegex(
+            NotImplementedError, "Cannot derive a contraction view"
+        ):
+            layer.quantize(mode, config=calibration_config(mode, group_size=-1))
+        self.assertIsNone(layer.quantization_mode)
+        self.assertIsNone(layer.quantization_config)
+        self.assertEqual(len(layer.weights), len(weights))
+        for variable, value in zip(layer.weights, weights):
+            self.assertAllEqual(variable, value)
+
+    @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
     def test_run_calibrates_every_block_in_order(self, mode):
         blocks = [
             models.Sequential(
@@ -860,14 +877,31 @@ class CalibrationRunModelTest(testing.TestCase):
         self.assertIn("pathless", [path for path, *_ in report.quantized])
 
     @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
+    def test_equation_without_a_view_is_skipped_and_reported(self, mode):
+        dense = layers.Dense(8)
+        einsum = layers.EinsumDense("abc,bc->abc", output_shape=(16, 8))
+        model, config = _tiny_model(mode, block_layers=[dense, einsum])
+        kernel = ops.convert_to_numpy(einsum.kernel)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            report = model.quantize(mode, config=config)
+        self.assertIn(
+            (einsum.path, QuantizationReport.SKIP_NO_SUPPORT), report.skipped
+        )
+        self.assertIsNone(einsum.quantization_mode)
+        self.assertIsNone(einsum.quantization_config)
+        self.assertAllEqual(einsum.kernel, kernel)
+        assert_calibrated(self, dense, mode)
+
+    @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
     def test_calibration_runs_without_grad_tracking(self, mode):
         """On torch, graphs of the calibration forwards would keep every
         activation of the run alive and exhaust GPU memory."""
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.skipTest("gradient tracking is specific to torch")
-        model, config = _tiny_model(mode)
+        model, quant_config = _tiny_model(mode)
         with _spy_on_observe(mode) as observe:
-            model.quantize(mode, config=config)
+            model.quantize(mode, config=quant_config)
         self.assertTrue(observe.called)
         for call in observe.call_args_list:
             self.assertIsNone(getattr(call.args[1], "grad_fn", None))

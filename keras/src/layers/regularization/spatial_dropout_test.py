@@ -1,7 +1,7 @@
 import numpy as np
 
-from keras.src import backend
 from keras.src import layers
+from keras.src.backend import config
 from keras.src.testing import test_case
 
 
@@ -74,13 +74,13 @@ class SpatialDropoutTest(test_case.TestCase):
         layer(inputs, training=True)
 
     def test_spatial_dropout_2D_correctness(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             inputs = np.ones((10, 3, 3, 10))
         else:
             inputs = np.ones((10, 10, 3, 3))
         layer = layers.SpatialDropout2D(0.5)
         outputs = layer(inputs, training=True)
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             self.assertAllClose(outputs[:, 0, 0, :], outputs[:, 1, 1, :])
         else:
             self.assertAllClose(outputs[:, :, 0, 0], outputs[:, :, 1, 1])
@@ -91,13 +91,13 @@ class SpatialDropoutTest(test_case.TestCase):
         layer(inputs, training=True)
 
     def test_spatial_dropout_3D_correctness(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             inputs = np.ones((10, 3, 3, 3, 10))
         else:
             inputs = np.ones((10, 10, 3, 3, 3))
         layer = layers.SpatialDropout3D(0.5)
         outputs = layer(inputs, training=True)
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             self.assertAllClose(outputs[:, 0, 0, 0, :], outputs[:, 1, 1, 1, :])
         else:
             self.assertAllClose(outputs[:, :, 0, 0, 0], outputs[:, :, 1, 1, 1])

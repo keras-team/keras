@@ -3,6 +3,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -36,7 +37,7 @@ class AugMixTest(testing.TestCase):
         self.assertAllClose(inputs, output)
 
     def test_random_augment_randomness(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_data = np.random.random((2, 8, 8, 3))
         else:
@@ -52,7 +53,7 @@ class AugMixTest(testing.TestCase):
         )
 
     def test_tf_data_compatibility(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_data = np.random.random((2, 8, 8, 3))
         else:
@@ -64,7 +65,7 @@ class AugMixTest(testing.TestCase):
             output.numpy()
 
     def test_seed_reproducibility(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_data = np.random.random((2, 8, 8, 3))
         else:

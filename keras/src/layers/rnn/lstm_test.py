@@ -4,10 +4,10 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 
 
 class LSTMTest(testing.TestCase):
@@ -375,7 +375,7 @@ class LSTMTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "torch",
+        config.backend() != "torch",
         reason="Reproduces torch stateful LSTM backward (#23462).",
     )
     def test_stateful_backward(self):

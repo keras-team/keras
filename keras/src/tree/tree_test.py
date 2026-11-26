@@ -8,9 +8,9 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.tree.tree_api import MAP_TO_NONE
 from keras.src.utils.module_utils import dmtree
 from keras.src.utils.module_utils import optree
@@ -29,7 +29,7 @@ if dmtree.available:
             "t": dmtree_impl,
         }
     ]
-if backend.backend() != "torch" and optree.available:
+if config.backend() != "torch" and optree.available:
     from keras.src.tree import optree_impl
 
     TEST_CASES += [
@@ -38,7 +38,7 @@ if backend.backend() != "torch" and optree.available:
             "t": optree_impl,
         },
     ]
-if backend.backend() == "torch":
+if config.backend() == "torch":
     from keras.src.tree import torchtree_impl
 
     TEST_CASES += [
@@ -159,7 +159,7 @@ class TreeTest(testing.TestCase):
         self.assertTrue(t.is_nested(TrackedOrderedDict({"a": 1})))
         self.assertTrue(t.is_nested(TrackedOrderedDict({"b": 2, "a": 1})))
 
-    @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
     def test_is_nested_tf_wrappers(self, t):
         from tensorflow.python.trackable.data_structures import ListWrapper
         from tensorflow.python.trackable.data_structures import _DictWrapper
@@ -245,7 +245,7 @@ class TreeTest(testing.TestCase):
             [1, 2, 3, 4, 5, 6, 7, 8, 9, np.array([10])],
         )
 
-    @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
     def test_flatten_tf_wrappers(self, t):
         from tensorflow.python.trackable.data_structures import ListWrapper
         from tensorflow.python.trackable.data_structures import _DictWrapper
@@ -426,7 +426,7 @@ class TreeTest(testing.TestCase):
             ],
         )
 
-    @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
     def test_flatten_with_path_tf_wrappers(self, t):
         from tensorflow.python.trackable.data_structures import ListWrapper
         from tensorflow.python.trackable.data_structures import _DictWrapper
@@ -606,7 +606,7 @@ class TreeTest(testing.TestCase):
         # Dicts below a non-dict node are sorted too.
         self.assertEqualStrict(t.flatten({"b": [{"d": 40, "c": 30}]}), [30, 40])
 
-    @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
     def test_pack_sequence_as_tf_wrappers(self, t):
         from tensorflow.python.trackable.data_structures import ListWrapper
         from tensorflow.python.trackable.data_structures import _DictWrapper
@@ -766,7 +766,7 @@ class TreeTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "at least one structure"):
             t.map_structure(f1)
 
-    @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
     def test_map_structure_with_one_structure_tf_wrappers(self, t):
         from tensorflow.python.trackable.data_structures import ListWrapper
         from tensorflow.python.trackable.data_structures import _DictWrapper
@@ -1123,7 +1123,7 @@ class TreeTest(testing.TestCase):
                 f2, OrderedDict([("a", 1), ("b", 2)]), OrderedDict([("a", 10)])
             )
 
-    @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
     def test_map_structure_with_multiple_structures_tf_wrappers(self, t):
         from tensorflow.python.trackable.data_structures import ListWrapper
         from tensorflow.python.trackable.data_structures import _DictWrapper
@@ -1560,7 +1560,7 @@ class TreeTest(testing.TestCase):
                 TrackedOrderedDict({"b": 2, "a": 1}),
             )
 
-    @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
     def test_assert_same_structure_tf_wrappers(self, t):
         from tensorflow.python.trackable.data_structures import ListWrapper
         from tensorflow.python.trackable.data_structures import _DictWrapper
@@ -1797,7 +1797,7 @@ class TreeTest(testing.TestCase):
                 OrderedDict([("a", 1), ("b", 2)]), OrderedDict([("a", 10)])
             )
 
-    @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
     def test_assert_same_paths_tf_wrappers(self, t):
         from tensorflow.python.trackable.data_structures import ListWrapper
         from tensorflow.python.trackable.data_structures import _DictWrapper
@@ -2082,7 +2082,7 @@ class TreeTest(testing.TestCase):
             ],
         )
 
-    @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
     def test_traverse_top_down_tf_wrappers(self, t):
         from tensorflow.python.trackable.data_structures import ListWrapper
         from tensorflow.python.trackable.data_structures import _DictWrapper
@@ -2406,7 +2406,7 @@ class TreeTest(testing.TestCase):
             ],
         )
 
-    @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
     def test_traverse_bottom_up_tf_wrappers(self, t):
         from tensorflow.python.trackable.data_structures import ListWrapper
         from tensorflow.python.trackable.data_structures import _DictWrapper
@@ -2529,7 +2529,7 @@ class TreeTest(testing.TestCase):
             ],
         )
 
-    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    @pytest.mark.skipif(config.backend() != "torch", reason="torch only")
     def test_traverse_torch_compile_fullgraph(self, t):
         import torch
 

@@ -1,9 +1,9 @@
 import numpy as np
 
 import keras
-from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -31,7 +31,7 @@ class RandomColorDegenerationTest(testing.TestCase):
         self.assertTrue(keras.ops.numpy.all(adjusted_image <= 1))
 
     def test_random_color_degeneration_no_op(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             inputs = np.random.random((2, 8, 8, 3))
         else:
@@ -42,7 +42,7 @@ class RandomColorDegenerationTest(testing.TestCase):
         self.assertAllClose(inputs, output, atol=1e-3, rtol=1e-5)
 
     def test_random_color_degeneration_factor_zero(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             inputs = np.random.random((2, 8, 8, 3))
         else:
@@ -61,7 +61,7 @@ class RandomColorDegenerationTest(testing.TestCase):
         self.assertNotAllClose(adjusted_images, image)
 
     def test_tf_data_compatibility(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_data = np.random.random((2, 8, 8, 3))
         else:

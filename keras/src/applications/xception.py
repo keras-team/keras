@@ -1,7 +1,7 @@
-from keras.src import backend
 from keras.src import layers
 from keras.src.api_export import keras_export
 from keras.src.applications import imagenet_utils
+from keras.src.backend import config
 from keras.src.backend.common import is_keras_tensor
 from keras.src.models import Functional
 from keras.src.ops import operation_utils
@@ -113,7 +113,7 @@ def Xception(
         input_shape,
         default_size=299,
         min_size=71,
-        data_format=backend.image_data_format(),
+        data_format=config.image_data_format(),
         require_flatten=include_top,
         weights=weights,
     )
@@ -126,7 +126,7 @@ def Xception(
         else:
             img_input = input_tensor
 
-    channel_axis = 1 if backend.image_data_format() == "channels_first" else -1
+    channel_axis = 1 if config.image_data_format() == "channels_first" else -1
 
     x = layers.Conv2D(
         32, (3, 3), strides=(2, 2), use_bias=False, name="block1_conv1"

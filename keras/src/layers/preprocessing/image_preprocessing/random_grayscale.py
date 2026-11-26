@@ -1,6 +1,6 @@
-from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import standardize_data_format
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
@@ -61,7 +61,7 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
                 f"`factor` should be between 0 and 1. Received: factor={factor}"
             )
         self.factor = factor
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
         self.seed = seed
         self.generator = self.backend.random.SeedGenerator(seed)
 

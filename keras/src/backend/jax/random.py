@@ -6,6 +6,11 @@ from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
 
 
+def seed_dtype():
+    # jax random seed uses uint32.
+    return "uint32"
+
+
 def jax_draw_seed(seed):
     if isinstance(seed, jax.Array):
         return seed

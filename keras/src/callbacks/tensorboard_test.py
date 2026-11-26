@@ -11,7 +11,6 @@ import pytest
 from tensorboard.backend.event_processing import event_file_loader
 from tensorboard.compat.proto import event_pb2
 
-from keras.src import backend
 from keras.src import callbacks
 from keras.src import layers
 from keras.src import losses
@@ -19,6 +18,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.optimizers import schedules
 from keras.src.utils import file_utils
 from keras.src.utils.module_utils import tensorflow
@@ -462,7 +462,7 @@ class TestTensorBoardV2(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_tensorboard_weight_images(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (10, 10, 1)
             x_shape = (10, 10, 10, 1)
         else:
@@ -666,7 +666,7 @@ class TestTensorBoardV2(testing.TestCase):
         return result
 
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        config.backend() == "torch",
         reason="Torch backend requires blocking numpy conversion.",
     )
     @pytest.mark.requires_trainable_backend
@@ -793,7 +793,7 @@ class TestTensorBoardV2(testing.TestCase):
         pass
 
     @pytest.mark.skipif(
-        backend.backend() not in ("jax", "tensorflow"),
+        config.backend() not in ("jax", "tensorflow"),
         reason="The profiling test can only run with TF and JAX backends.",
     )
     def test_tensorboard_auto_trace(self):
@@ -806,7 +806,7 @@ class TestTensorBoardV2(testing.TestCase):
             ]
         )
         x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
-        if backend.backend() == "jax" and sys.version_info[1] < 12:
+        if config.backend() == "jax" and sys.version_info[1] < 12:
             with pytest.warns(match="backend requires python >= 3.12"):
                 callbacks.TensorBoard(
                     logdir, histogram_freq=1, profile_batch=1, write_graph=False

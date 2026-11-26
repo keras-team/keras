@@ -27,8 +27,10 @@ class Variable(KerasVariable):
         return convert_to_tensor(value, dtype=dtype)
 
     # Overload native accessor.
-    def __array__(self):
-        return self.value
+    def __array__(self, dtype=None, *, copy=None):
+        if copy is not None:
+            return self.value.__array__(dtype, copy=copy)
+        return self.value.__array__(dtype)
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
@@ -452,10 +454,6 @@ def stop_gradient(variable):
 
 def unstack(x, num=None, axis=0):
     return list(np.moveaxis(x, axis, 0))
-
-
-def random_seed_dtype():
-    return "uint32"
 
 
 class custom_gradient:

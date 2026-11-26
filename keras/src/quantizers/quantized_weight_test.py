@@ -10,6 +10,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import AutocastScope
 from keras.src.quantizers import packing
 from keras.src.quantizers import strategy_registry
@@ -284,6 +285,21 @@ class QuantizedWeightTest(testing.TestCase):
         self.assertEqual(tuple(view.unpack().shape), (2, 2, 3))
         self.assertEqual(tuple(view.dequantize("float32").shape), (2, 2, 3))
         self.assertIn("shape=(2, 2, 3)", repr(view))
+
+    def test_permutation_restores_the_weight_axes(self):
+        # The codes are the weight transposed by `permutation`, flattened.
+        weight = np.arange(24, dtype="float32").reshape(2, 3, 4)
+        codes = np.transpose(weight, (1, 0, 2)).reshape(3, 8).astype("int8")
+        view = QuantizedWeight(
+            codes=codes,
+            scale=np.float32(1.0),
+            layout=NoPack(),
+            scheme=DIVISOR,
+            shape=(2, 3, 4),
+            permutation=(1, 0, 2),
+        )
+        self.assertAllEqual(view.unpack(), weight)
+        self.assertAllClose(view.dequantize("float32"), weight)
 
     def test_with_tensors_takes_read_tensors_in_order(self):
         view = _grouped_view(
@@ -587,7 +603,7 @@ class QuantizedProjectionGradientTest(testing.TestCase):
         ("einsum_int4_grouped", "einsum", "int4", 4),
     )
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only TensorFlow runs the eager gradient outside autocast.",
     )
     def test_eager_input_gradient_matches_graph(self, kind, mode, block_size):
