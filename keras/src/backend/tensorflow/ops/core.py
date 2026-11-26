@@ -1,4 +1,5 @@
 import builtins
+import functools
 
 import numpy as np
 import tensorflow as tf
@@ -9,6 +10,7 @@ from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import StatelessScope
 from keras.src.backend.common import SymbolicScope
+from keras.src.backend.common import get_autocast_scope
 from keras.src.backend.common import global_state
 from keras.src.backend.common import in_stateless_scope
 from keras.src.backend.common import is_int_dtype
@@ -853,7 +855,25 @@ def remat(f):
         A function wrapping f that defines a custom gradient, which
         recomputes f on the backwards pass of a gradient call.
     """
-    return tf.recompute_grad(f)
+
+    @functools.wraps(f)
+    def wrapped(*args, **kwargs):
+        autocast_scope = get_autocast_scope()
+
+        def scoped_f(*args):
+            # Replay the forward variable autocasting during recomputation.
+            previous_scope = get_autocast_scope()
+            global_state.set_global_attribute("autocast_scope", autocast_scope)
+            try:
+                return f(*args, **kwargs)
+            finally:
+                global_state.set_global_attribute(
+                    "autocast_scope", previous_scope
+                )
+
+        return tf.recompute_grad(scoped_f)(*args)
+
+    return wrapped
 
 
 class name_scope(base_name_scope):
