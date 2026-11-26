@@ -59,16 +59,10 @@ PYTHON_DTYPES_MAP = {
 }
 
 
-@keras_export(
-    ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
-)
-def standardize_dtype(dtype):
-    # Fast path: an already-canonical dtype string is by far the common case
-    # and needs none of the normalization below.
-    if isinstance(dtype, str) and dtype in ALLOWED_DTYPES_SET:
-        return dtype
-    if dtype is None:
-        return config.floatx()
+# `typed=True` keeps `tf.float32` apart from `1`, which hashes and compares
+# equal to it.
+@functools.lru_cache(maxsize=512, typed=True)
+def _standardize_dtype(dtype):
     dtype = PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(dtype, "name"):
         dtype = dtype.name.lower()
@@ -84,6 +78,19 @@ def standardize_dtype(dtype):
     if dtype not in ALLOWED_DTYPES_SET:
         raise ValueError(f"Invalid dtype: {dtype}")
     return dtype
+
+
+@keras_export(
+    ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
+)
+def standardize_dtype(dtype):
+    # Fast path: an already-canonical dtype string is by far the common case
+    # and needs none of the normalization below.
+    if isinstance(dtype, str) and dtype in ALLOWED_DTYPES_SET:
+        return dtype
+    if dtype is None:
+        return config.floatx()
+    return _standardize_dtype(dtype)
 
 
 @keras_export("keras.backend.is_float_dtype")
@@ -333,6 +340,27 @@ def _cap_to_32bit(out_dtype, dtypes, weak_types):
     return BIT64_TO_BIT32_DTYPE.get(out_dtype, out_dtype)
 
 
+def _result_type(dtypes):
+    """Uncached `result_type` for a non-empty tuple of dtypes."""
+    for dtype in dtypes:
+        if dtype in FLOAT8_TYPES:
+            raise ValueError(
+                "There is no implicit conversions from float8 dtypes to others."
+                f" You must cast it internally. Received: {dtypes}"
+            )
+    return _lattice_result_type(
+        *(config.floatx() if arg is None else arg for arg in dtypes),
+    )
+
+
+# `floatx` and `x64_mode` are only part of the key.
+# `typed=True` keeps `tf.float32` apart from `1`, which hashes and compares
+# equal to it.
+@functools.lru_cache(maxsize=512, typed=True)
+def _cached_result_type(floatx, x64_mode, *dtypes):
+    return _result_type(dtypes)
+
+
 @keras_export("keras.backend.result_type")
 def result_type(*dtypes):
     """Returns the type from applying the Keras type promotion rules.
@@ -371,15 +399,11 @@ def result_type(*dtypes):
         # If no dtypes provided, default to floatx, this matches
         # `ops.convert_to_tensor([])`
         return config.floatx()
-    for dtype in dtypes:
-        if dtype in FLOAT8_TYPES:
-            raise ValueError(
-                "There is no implicit conversions from float8 dtypes to others."
-                f" You must cast it internally. Received: {dtypes}"
-            )
-    return _lattice_result_type(
-        *(config.floatx() if arg is None else arg for arg in dtypes),
-    )
+    try:
+        return _cached_result_type(config.floatx(), config.x64_mode(), *dtypes)
+    except TypeError:
+        # An unhashable argument can't be a key. The uncached path rejects it.
+        return _result_type(dtypes)
 
 
 def promote_to_float_dtype(dtype):

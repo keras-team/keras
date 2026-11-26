@@ -98,6 +98,47 @@ class DtypesTest(test_case.TestCase):
     def test_result_type_empty_list(self):
         self.assertEqual(result_type(), "float32")
 
+    def test_result_type_respects_floatx(self):
+        self.addCleanup(config.set_floatx, config.floatx())
+        config.set_floatx("float32")
+        self.assertEqual(result_type(float), "float32")
+        self.assertEqual(result_type(None), "float32")
+        config.set_floatx("float16")
+        self.assertEqual(result_type(float), "float16")
+        self.assertEqual(result_type(None), "float16")
+
+    @pytest.mark.skipif(
+        not X64_SUPPORTED or backend.backend() == "tensorflow",
+        reason="Needs both the `off` and `explicit_x64` modes.",
+    )
+    def test_result_type_respects_x64_mode(self):
+        with x64_mode_scope("off"):
+            self.assertEqual(result_type("float64", "int32"), "float32")
+        with x64_mode_scope("explicit_x64"):
+            self.assertEqual(result_type("float64", "int32"), "float64")
+        with x64_mode_scope("off"):
+            self.assertEqual(result_type("float64", "int32"), "float32")
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="TensorFlow only"
+    )
+    def test_result_type_does_not_confuse_tf_dtype_with_int(self):
+        # `tf.float32` hashes and compares equal to `1`, which is not a dtype.
+        import tensorflow as tf
+
+        self.assertEqual(result_type(tf.float32), "float32")
+        with self.assertRaises(ValueError):
+            result_type(1)
+
+    def test_result_type_unhashable_argument(self):
+        with self.assertRaises(TypeError):
+            result_type([1, 2])
+        with self.assertRaises(TypeError):
+            result_type("float32", [1])
+        # Arguments are checked in order, the invalid string comes first.
+        with self.assertRaises(ValueError):
+            result_type("not_a_dtype", [1])
+
     def test_respect_weak_type_for_bool(self):
         self.assertEqual(dtypes._respect_weak_type("bool", True), "bool")
 
@@ -271,10 +312,10 @@ class DtypesTest(test_case.TestCase):
     def test_standardize_dtype(self, dtype):
         x = backend.ops.convert_to_tensor(0.0, dtype)
         actual = dtypes.standardize_dtype(x.dtype)
-        if dtype is None:
-            self.assertEqual(actual, config.floatx())
-        else:
-            self.assertEqual(actual, dtype)
+        expected = config.floatx() if dtype is None else dtype
+        self.assertEqual(actual, expected)
+        # The second call is served from the cache.
+        self.assertEqual(dtypes.standardize_dtype(x.dtype), expected)
 
     @parameterized.named_parameters(named_product(dtype=X64_DTYPES))
     @pytest.mark.skipif(not X64_SUPPORTED, reason="Needs `explicit_x64`.")
@@ -289,6 +330,17 @@ class DtypesTest(test_case.TestCase):
         expected = "int64" if config.backend() == "tensorflow" else "int32"
         self.assertEqual(dtypes.standardize_dtype(int), expected)
         self.assertEqual(dtypes.standardize_dtype("int"), expected)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="TensorFlow only"
+    )
+    def test_standardize_dtype_does_not_confuse_tf_dtype_with_int(self):
+        # `tf.float32` hashes and compares equal to `1`, which is not a dtype.
+        import tensorflow as tf
+
+        self.assertEqual(dtypes.standardize_dtype(tf.float32), "float32")
+        with self.assertRaises(ValueError):
+            dtypes.standardize_dtype(1)
 
     def test_result_type_weak_float_under_bfloat16_floatx(self):
         default = config.floatx()
