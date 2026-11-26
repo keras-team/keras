@@ -2020,8 +2020,11 @@ class CategoricalCrossentropy(Operation):
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
         axis = canonicalize_axis(self.axis, len(output.shape))
+        dtype = standardize_dtype(output.dtype)
+        if not is_float_dtype(dtype):
+            dtype = config.floatx()
         return KerasTensor(
-            output.shape[:axis] + output.shape[axis + 1 :], dtype=output.dtype
+            output.shape[:axis] + output.shape[axis + 1 :], dtype=dtype
         )
 
 
@@ -2057,8 +2060,8 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
             the tensors.
 
     Returns:
-        Integer tensor: The computed categorical cross-entropy loss between
-        `target` and `output`.
+        Floating-point tensor: The computed categorical cross-entropy loss
+        between `target` and `output`.
 
     Example:
 
@@ -2113,7 +2116,10 @@ class SparseCategoricalCrossentropy(Operation):
                 "up until the last dimension: "
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
-        return KerasTensor(output_shape_without_class, dtype=output.dtype)
+        dtype = standardize_dtype(output.dtype)
+        if not is_float_dtype(dtype):
+            dtype = config.floatx()
+        return KerasTensor(output_shape_without_class, dtype=dtype)
 
 
 @keras_export(
@@ -2149,7 +2155,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             of the tensors.
 
     Returns:
-        Integer tensor: The computed sparse categorical cross-entropy
+        Floating-point tensor: The computed sparse categorical cross-entropy
         loss between `target` and `output`.
 
     Example:

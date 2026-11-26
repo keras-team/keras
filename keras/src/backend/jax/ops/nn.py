@@ -995,6 +995,9 @@ def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = jnp.array(target)
     output = jnp.array(output)
+    if not is_float_dtype(output.dtype):
+        output = cast(output, config.floatx())
+    target = cast(target, output.dtype)
 
     if target.shape != output.shape:
         raise ValueError(
@@ -1021,6 +1024,8 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = jnp.array(target, dtype="int32")
     output = jnp.array(output)
+    if not is_float_dtype(output.dtype):
+        output = cast(output, config.floatx())
     if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
         target = jnp.squeeze(target, axis=-1)
 
@@ -1042,7 +1047,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         output = output / jnp.sum(output, axis, keepdims=True)
         output = jnp.clip(output, config.epsilon(), 1.0 - config.epsilon())
         log_prob = jnp.log(output)
-    target = jnn.one_hot(target, output.shape[axis], axis=axis)
+    target = jnn.one_hot(
+        target, output.shape[axis], axis=axis, dtype=output.dtype
+    )
     return -jnp.sum(target * log_prob, axis=axis)
 
 
