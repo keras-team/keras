@@ -125,6 +125,14 @@ class DistributeTest(testing.TestCase):
                 self.assertEqual(sample_weight.values[0].shape, [2])
         self.assertEqual(steps_seen, [0, 1, 2, 3, 4, 5, 6])
 
+    def test_jit_compile_disabled_with_multi_replica_strategy(self):
+        strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
+        model = models.Sequential([layers.Dense(2)])
+        with strategy.scope():
+            with self.assertWarnsRegex(UserWarning, "multi-replica"):
+                model.compile(optimizer="sgd", loss="mse", jit_compile=True)
+        self.assertFalse(model.jit_compile)
+
     def test_variable_aggregation(self):
         strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
 

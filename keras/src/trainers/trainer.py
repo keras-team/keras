@@ -215,6 +215,7 @@ class BaseTrainer:
                 stacklevel=2,
             )
 
+        self._jit_compile = None
         self.jit_compile = jit_compile
         self.run_eagerly = run_eagerly
         self.stop_training = False
@@ -255,6 +256,13 @@ class BaseTrainer:
                 "Proceeding with `jit_compile=False`."
             )
             self._jit_compile = False
+        elif value and _uses_multi_replica_tf_distribute(self):
+            warnings.warn(
+                "`jit_compile=True` is not supported with a multi-replica "
+                "`tf.distribute` strategy. Proceeding with "
+                "`jit_compile=False`."
+            )
+            self._jit_compile = False
         else:
             self._jit_compile = value
 
@@ -271,7 +279,7 @@ class BaseTrainer:
                 # Disable XLA on CPU-only machines.
                 return False
 
-            if self._distribute_strategy:
+            if self._distribute_strategy or tf.distribute.has_strategy():
                 # Disable XLA with tf.distribute
                 return False
 
@@ -1251,3 +1259,14 @@ def model_supports_jit(model):
                 return False
         return True
     return False
+
+
+def _uses_multi_replica_tf_distribute(model):
+    if config.backend() != "tensorflow":
+        return False
+    from keras.src.utils.module_utils import tensorflow as tf
+
+    strategy = model.distribute_strategy
+    return strategy.num_replicas_in_sync > 1 and not isinstance(
+        strategy, tf.distribute.TPUStrategy
+    )
