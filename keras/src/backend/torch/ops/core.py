@@ -1,6 +1,7 @@
 import builtins
 import contextlib
 import functools
+import numbers
 import os
 
 import ml_dtypes
@@ -19,6 +20,7 @@ from keras.src.backend.common import global_state
 from keras.src.backend.common import in_stateless_scope
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import empty_scan_ys_spec
+from keras.src.backend.common.backend_utils import normalize_slice_start_indices
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.backend_utils import standardize_argnums
 from keras.src.backend.common.dtypes import result_type
@@ -933,8 +935,17 @@ def slice_update(inputs, start_indices, updates):
     # directly. This avoids creating tensors from the indices, which would
     # introduce data-dependent expressions that torch.export cannot trace.
     if isinstance(start_indices, (list, tuple)) and all(
-        isinstance(s, int) for s in start_indices
+        isinstance(s, numbers.Integral) and not isinstance(s, bool)
+        for s in start_indices
     ):
+        # Python `slice(-1, 0)` is empty; normalize negatives first so
+        # `[-1]` updates the last element like NumPy/JAX.
+        start_indices = [
+            int(s)
+            for s in normalize_slice_start_indices(
+                start_indices, inputs.shape
+            )
+        ]
         slices = [
             builtins.slice(start_index, start_index + update_length)
             for start_index, update_length in zip(start_indices, updates.shape)

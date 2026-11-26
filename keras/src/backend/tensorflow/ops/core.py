@@ -13,6 +13,7 @@ from keras.src.backend.common import global_state
 from keras.src.backend.common import in_stateless_scope
 from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import normalize_slice_start_indices
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.backend_utils import standardize_argnums
 from keras.src.backend.common.name_scope import name_scope as base_name_scope
@@ -786,6 +787,18 @@ def slice(inputs, start_indices, shape):
 
 
 def slice_update(inputs, start_indices, updates):
+    inputs = convert_to_tensor(inputs)
+    updates = convert_to_tensor(updates)
+    # XLA dynamic_update_slice does not treat negatives as NumPy-style
+    # wrap-from-end indices (e.g. -1 -> last dim).
+    if isinstance(start_indices, (list, tuple)):
+        start_indices = normalize_slice_start_indices(
+            start_indices, inputs.shape
+        )
+    else:
+        starts = tf.convert_to_tensor(start_indices)
+        dims = tf.cast(tf.shape(inputs)[: tf.size(starts)], starts.dtype)
+        start_indices = tf.where(starts < 0, starts + dims, starts)
     return dynamic_update_slice(inputs, updates, start_indices)
 
 
