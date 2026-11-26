@@ -1,9 +1,11 @@
 import os
+from unittest import mock
 
 import numpy as np
 import pytest
 import tensorflow as tf
 
+from keras.src import activations
 from keras.src import backend
 from keras.src import layers
 from keras.src import models
@@ -13,6 +15,7 @@ from keras.src.backend import config
 from keras.src.export import saved_model
 from keras.src.export import tfsm_layer
 from keras.src.export.saved_model_test import get_model
+from keras.src.saving import saving_api
 from keras.src.saving import saving_lib
 
 
@@ -156,6 +159,50 @@ class TestTFSMLayer(testing.TestCase):
 
         x = tf.random.normal((2, 10))
         self.assertAllClose(loaded_model(x), wrapper_model(x))
+
+    def test_lambda_function_config_cannot_resolve_to_tfsm_layer(self):
+        # A crafted `.keras` file whose `Lambda` function config names the
+        # `TFSMLayer` class. `Lambda.call` would call `TFSMLayer(<path>)`
+        # with a path taken from the config, skipping
+        # `TFSMLayer.from_config()` and its safe mode check.
+        temp_dir = self.get_temp_dir()
+        temp_filepath = os.path.join(temp_dir, "exported_model")
+        exported_model = get_model()
+        exported_model(tf.zeros((1, 10)))
+        saved_model.export_saved_model(exported_model, temp_filepath)
+
+        inputs = layers.Input((10,))
+        outputs = layers.Dense(1, name="dense")(inputs)
+        lambda_outputs = layers.Lambda(activations.relu, name="lambda")(inputs)
+        model = models.Model(inputs, [outputs, lambda_outputs])
+        config = model.get_config()
+        lambda_config = next(
+            layer for layer in config["layers"] if layer["name"] == "lambda"
+        )
+        lambda_config["config"]["function"] = {
+            "module": "keras.layers",
+            "class_name": "function",
+            "config": "TFSMLayer",
+            "registered_name": "TFSMLayer",
+        }
+        lambda_config["inbound_nodes"][0] = {
+            "args": [],
+            "kwargs": {"inputs": temp_filepath},
+        }
+        config["output_layers"] = config["output_layers"][0]
+        model_path = os.path.join(temp_dir, "crafted.keras")
+        with mock.patch.object(model, "get_config", return_value=config):
+            model.save(model_path)
+
+        with mock.patch.object(
+            tf.saved_model, "load", wraps=tf.saved_model.load
+        ) as load:
+            for kwargs in ({}, {"safe_mode": True}, {"safe_mode": False}):
+                with self.assertRaisesRegex(
+                    TypeError, "must refer to a function, not a class"
+                ):
+                    saving_api.load_model(model_path, **kwargs)
+            load.assert_not_called()
 
     def test_errors(self):
         # Test missing call endpoint
