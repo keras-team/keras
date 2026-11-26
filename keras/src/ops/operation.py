@@ -14,6 +14,7 @@ from keras.src.backend.common import in_symbolic_scope
 from keras.src.backend.common import remat
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.ops.node import Node
+from keras.src.ops.operation_utils import broadcast_shapes
 from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
 from keras.src.utils import traceback_utils
@@ -515,3 +516,59 @@ class ElementwiseUnaryOperation(Operation):
         sparse = self.preserves_sparse and getattr(x, "sparse", False)
         ragged = getattr(x, "ragged", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse, ragged=ragged)
+
+
+class ElementwiseBinaryOperation(Operation):
+    """Base class for elementwise binary operations, which broadcast operands.
+
+    Subclasses must specify `call_fn` as a class attribute.
+    Optionally, subclasses may specify `output_dtype` (e.g., `"bool"` for
+    comparison ops), `promote_to_float = True` (for ops promoting integer/bool
+    inputs to floating-point), or `output_sparse_fn` (a callable
+    `(x1_sparse, x2_sparse) -> bool` computing output sparsity). If neither
+    `output_dtype` nor `promote_to_float` is specified, the output dtype is
+    inferred via `dtypes.result_type(x1.dtype, x2.dtype)`.
+    """
+
+    call_fn = None
+    output_dtype = None
+    promote_to_float = False
+    output_sparse_fn = lambda x1_sparse, x2_sparse: False
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.call_fn is None:
+            raise ValueError(f"Class '{cls.__name__}' must define `call_fn`.")
+        cls.call_fn = staticmethod(cls.call_fn)
+        cls.output_sparse_fn = staticmethod(cls.output_sparse_fn)
+
+    def call(self, x1, x2):
+        return self.call_fn(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        if self.output_dtype:
+            dtype = self.output_dtype
+        else:
+            dtype = dtypes.result_type(
+                getattr(x1, "dtype", type(x1)),
+                getattr(x2, "dtype", type(x2)),
+            )
+            if self.promote_to_float:
+                dtype = dtypes.promote_to_float_dtype(dtype)
+        x1_sparse = getattr(x1, "sparse", False)
+        x2_sparse = getattr(x2, "sparse", False)
+        x1_ragged = getattr(x1, "ragged", False)
+        x2_ragged = getattr(x2, "ragged", False)
+        output_ragged = x1_ragged or x2_ragged
+        output_sparse = (
+            self.output_sparse_fn(x1_sparse, x2_sparse) and not output_ragged
+        )
+        return KerasTensor(
+            output_shape,
+            dtype=dtype,
+            sparse=output_sparse,
+            ragged=output_ragged,
+        )

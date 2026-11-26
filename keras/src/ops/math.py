@@ -9,6 +9,7 @@ from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common.dtypes import promote_to_float_dtype
 from keras.src.backend.common.dtypes import result_type
+from keras.src.ops.operation import ElementwiseBinaryOperation
 from keras.src.ops.operation import ElementwiseUnaryOperation
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import broadcast_shapes
@@ -643,16 +644,9 @@ def fft2(x):
     return backend.ops.math.fft2(x)
 
 
-class Gammainc(Operation):
-    def compute_output_spec(self, x1, x2):
-        output_shape = broadcast_shapes(x1.shape, x2.shape)
-        return KerasTensor(
-            shape=output_shape,
-            dtype=promote_to_float_dtype(result_type(x1.dtype, x2.dtype)),
-        )
-
-    def call(self, x1, x2):
-        return backend.ops.math.gammainc(x1, x2)
+class Gammainc(ElementwiseBinaryOperation):
+    call_fn = backend.ops.math.gammainc
+    promote_to_float = True
 
 
 @keras_export("keras.ops.gammainc")

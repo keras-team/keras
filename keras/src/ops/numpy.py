@@ -19,20 +19,11 @@ from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.ops import operation_utils
+from keras.src.ops.operation import ElementwiseBinaryOperation
 from keras.src.ops.operation import ElementwiseUnaryOperation
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import broadcast_shapes
 from keras.src.ops.operation_utils import reduce_shape
-
-
-def _compute_binary_output_spec(x1, x2):
-    x1_shape = getattr(x1, "shape", [])
-    x2_shape = getattr(x2, "shape", [])
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-    )
-    return KerasTensor(broadcast_shapes(x1_shape, x2_shape), dtype=dtype)
 
 
 class Rot90(Operation):
@@ -256,24 +247,9 @@ def _fabs(x):
     return backend.ops.numpy.absolute(x)
 
 
-class Add(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.add(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and x2_sparse
-        return KerasTensor(
-            output_shape, dtype=output_dtype, sparse=output_sparse
-        )
+class Add(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.add
+    output_sparse_fn = lambda x1_sparse, x2_sparse: x1_sparse and x2_sparse
 
 
 @keras_export(["keras.ops.add", "keras.ops.numpy.add"])
@@ -873,20 +849,9 @@ def arctan(x):
     return backend.ops.numpy.arctan(x)
 
 
-class Arctan2(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.arctan2(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        outputs_shape = broadcast_shapes(x1_shape, x2_shape)
-        x1_dtype = dtypes.result_type(getattr(x1, "dtype", type(x1)))
-        x2_dtype = dtypes.result_type(getattr(x2, "dtype", type(x2)))
-        dtype = dtypes.promote_to_float_dtype(
-            dtypes.result_type(x1_dtype, x2_dtype)
-        )
-        return KerasTensor(outputs_shape, dtype=dtype)
+class Arctan2(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.arctan2
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.arctan2", "keras.ops.numpy.arctan2"])
@@ -1603,12 +1568,11 @@ def bincount(x, weights=None, minlength=0, sparse=False):
     )
 
 
-class BitwiseAnd(Operation):
-    def call(self, x, y):
-        return backend.ops.numpy.bitwise_and(x, y)
+class BitwiseAnd(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.bitwise_and
 
-    def compute_output_spec(self, x, y):
-        return _compute_binary_output_spec(x, y)
+    def call(self, x, y):
+        return self.call_fn(x, y)
 
 
 @keras_export(["keras.ops.bitwise_and", "keras.ops.numpy.bitwise_and"])
@@ -1677,12 +1641,11 @@ def bitwise_not(x):
     return backend.ops.numpy.bitwise_not(x)
 
 
-class BitwiseOr(Operation):
-    def call(self, x, y):
-        return backend.ops.numpy.bitwise_or(x, y)
+class BitwiseOr(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.bitwise_or
 
-    def compute_output_spec(self, x, y):
-        return _compute_binary_output_spec(x, y)
+    def call(self, x, y):
+        return self.call_fn(x, y)
 
 
 @keras_export(["keras.ops.bitwise_or", "keras.ops.numpy.bitwise_or"])
@@ -1705,12 +1668,11 @@ def bitwise_or(x, y):
     return backend.ops.numpy.bitwise_or(x, y)
 
 
-class BitwiseXor(Operation):
-    def call(self, x, y):
-        return backend.ops.numpy.bitwise_xor(x, y)
+class BitwiseXor(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.bitwise_xor
 
-    def compute_output_spec(self, x, y):
-        return _compute_binary_output_spec(x, y)
+    def call(self, x, y):
+        return self.call_fn(x, y)
 
 
 @keras_export(["keras.ops.bitwise_xor", "keras.ops.numpy.bitwise_xor"])
@@ -1733,12 +1695,11 @@ def bitwise_xor(x, y):
     return backend.ops.numpy.bitwise_xor(x, y)
 
 
-class BitwiseLeftShift(Operation):
-    def call(self, x, y):
-        return backend.ops.numpy.bitwise_left_shift(x, y)
+class BitwiseLeftShift(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.bitwise_left_shift
 
-    def compute_output_spec(self, x, y):
-        return _compute_binary_output_spec(x, y)
+    def call(self, x, y):
+        return self.call_fn(x, y)
 
 
 @keras_export(
@@ -1763,12 +1724,11 @@ def bitwise_left_shift(x, y):
     return backend.ops.numpy.bitwise_left_shift(x, y)
 
 
-class LeftShift(Operation):
-    def call(self, x, y):
-        return backend.ops.numpy.left_shift(x, y)
+class LeftShift(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.left_shift
 
-    def compute_output_spec(self, x, y):
-        return _compute_binary_output_spec(x, y)
+    def call(self, x, y):
+        return self.call_fn(x, y)
 
 
 @keras_export(["keras.ops.left_shift", "keras.ops.numpy.left_shift"])
@@ -1791,12 +1751,11 @@ def left_shift(x, y):
     return backend.ops.numpy.left_shift(x, y)
 
 
-class BitwiseRightShift(Operation):
-    def call(self, x, y):
-        return backend.ops.numpy.bitwise_right_shift(x, y)
+class BitwiseRightShift(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.bitwise_right_shift
 
-    def compute_output_spec(self, x, y):
-        return _compute_binary_output_spec(x, y)
+    def call(self, x, y):
+        return self.call_fn(x, y)
 
 
 @keras_export(
@@ -1821,12 +1780,11 @@ def bitwise_right_shift(x, y):
     return backend.ops.numpy.bitwise_right_shift(x, y)
 
 
-class RightShift(Operation):
-    def call(self, x, y):
-        return backend.ops.numpy.right_shift(x, y)
+class RightShift(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.right_shift
 
-    def compute_output_spec(self, x, y):
-        return _compute_binary_output_spec(x, y)
+    def call(self, x, y):
+        return self.call_fn(x, y)
 
 
 @keras_export(["keras.ops.right_shift", "keras.ops.numpy.right_shift"])
@@ -2158,21 +2116,28 @@ def copy(x):
     return backend.ops.numpy.copy(x)
 
 
-class Copysign(Operation):
-    def call(self, x1, x2):
-        return _copysign(x1, x2)
+def _copysign(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "copysign"
+    ):
+        return backend.ops.numpy.copysign(x1, x2)
+    x1 = backend.ops.convert_to_tensor(x1)
+    x2 = backend.ops.convert_to_tensor(x2)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
+    x1 = backend.ops.cast(x1, dtype)
+    x2 = backend.ops.cast(x2, dtype)
+    # Negate `x1` exactly when its sign differs from the sign of `x2`.
+    flip = backend.ops.numpy.logical_xor(
+        backend.ops.numpy.signbit(x1), backend.ops.numpy.signbit(x2)
+    )
+    return backend.ops.numpy.where(flip, backend.ops.numpy.negative(x1), x1)
 
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
 
-        x1_type = dtypes.result_type(getattr(x1, "dtype", type(x1)))
-        x2_type = dtypes.result_type(getattr(x2, "dtype", type(x2)))
-        dtype = dtypes.promote_to_float_dtype(
-            dtypes.result_type(x1_type, x2_type)
-        )
-        return KerasTensor(output_shape, dtype=dtype)
+class Copysign(ElementwiseBinaryOperation):
+    call_fn = _copysign
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.copysign", "keras.ops.numpy.copysign"])
@@ -2198,25 +2163,6 @@ def copysign(x1, x2):
     if any_symbolic_tensors((x1, x2)):
         return Copysign().symbolic_call(x1, x2)
     return _copysign(x1, x2)
-
-
-def _copysign(x1, x2):
-    if not config._use_backend_agnostic_ops() and hasattr(
-        backend.ops.numpy, "copysign"
-    ):
-        return backend.ops.numpy.copysign(x1, x2)
-    x1 = backend.ops.convert_to_tensor(x1)
-    x2 = backend.ops.convert_to_tensor(x2)
-    dtype = dtypes.promote_to_float_dtype(
-        dtypes.result_type(x1.dtype, x2.dtype)
-    )
-    x1 = backend.ops.cast(x1, dtype)
-    x2 = backend.ops.cast(x2, dtype)
-    # Negate `x1` exactly when its sign differs from the sign of `x2`.
-    flip = backend.ops.numpy.logical_xor(
-        backend.ops.numpy.signbit(x1), backend.ops.numpy.signbit(x2)
-    )
-    return backend.ops.numpy.where(flip, backend.ops.numpy.negative(x1), x1)
 
 
 class Cos(Operation):
@@ -3443,15 +3389,9 @@ def _empty_like(x, dtype=None):
     return backend.ops.numpy.zeros_like(x, dtype=dtype)
 
 
-class Equal(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.equal(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class Equal(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.equal
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.equal", "keras.ops.numpy.equal"])
@@ -3803,37 +3743,6 @@ def full_like(x, fill_value, dtype=None):
     return backend.ops.numpy.full_like(x, fill_value, dtype=dtype)
 
 
-class Gcd(Operation):
-    def call(self, x1, x2):
-        return _gcd(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-
-        x1_type = standardize_dtype(getattr(x1, "dtype", type(x1)))
-        x2_type = standardize_dtype(getattr(x2, "dtype", type(x2)))
-        dtype = dtypes.result_type(x1_type, x2_type)
-        return KerasTensor(output_shape, dtype=dtype)
-
-
-@keras_export(["keras.ops.gcd", "keras.ops.numpy.gcd"])
-def gcd(x1, x2):
-    """Greatest common divisor of `x1` and `x2`, element-wise.
-
-    Args:
-        x1: First input tensor (integer type).
-        x2: Second input tensor (integer type).
-
-    Returns:
-        Output tensor, element-wise greatest common divisor of `x1` and `x2`.
-    """
-    if any_symbolic_tensors((x1, x2)):
-        return Gcd().symbolic_call(x1, x2)
-    return _gcd(x1, x2)
-
-
 def _gcd(x1, x2):
     if not config._use_backend_agnostic_ops() and hasattr(
         backend.ops.numpy, "gcd"
@@ -3872,6 +3781,26 @@ def _gcd(x1, x2):
 
     x1, _ = backend.ops.while_loop(cond, body, (x1, x2))
     return x1
+
+
+class Gcd(ElementwiseBinaryOperation):
+    call_fn = _gcd
+
+
+@keras_export(["keras.ops.gcd", "keras.ops.numpy.gcd"])
+def gcd(x1, x2):
+    """Greatest common divisor of `x1` and `x2`, element-wise.
+
+    Args:
+        x1: First input tensor (integer type).
+        x2: Second input tensor (integer type).
+
+    Returns:
+        Output tensor, element-wise greatest common divisor of `x1` and `x2`.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Gcd().symbolic_call(x1, x2)
+    return _gcd(x1, x2)
 
 
 class GetItem(Operation):
@@ -4064,15 +3993,9 @@ def _geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
     return result
 
 
-class Greater(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.greater(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class Greater(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.greater
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.greater", "keras.ops.numpy.greater"])
@@ -4091,15 +4014,9 @@ def greater(x1, x2):
     return backend.ops.numpy.greater(x1, x2)
 
 
-class GreaterEqual(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.greater_equal(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class GreaterEqual(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.greater_equal
+    output_dtype = "bool"
 
 
 @keras_export(
@@ -4655,19 +4572,8 @@ def kron(x1, x2):
     return backend.ops.numpy.kron(x1, x2)
 
 
-class Lcm(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.lcm(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-
-        x1_type = standardize_dtype(getattr(x1, "dtype", type(x1)))
-        x2_type = standardize_dtype(getattr(x2, "dtype", type(x2)))
-        dtype = dtypes.result_type(x1_type, x2_type)
-        return KerasTensor(output_shape, dtype=dtype)
+class Lcm(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.lcm
 
 
 @keras_export(["keras.ops.lcm", "keras.ops.numpy.lcm"])
@@ -4692,18 +4598,9 @@ def lcm(x1, x2):
     return backend.ops.numpy.lcm(x1, x2)
 
 
-class Ldexp(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.ldexp(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        # The integer exponents in `x2` don't change the dtype.
-        x1_type = dtypes.result_type(getattr(x1, "dtype", type(x1)))
-        dtype = dtypes.promote_to_float_dtype(x1_type)
-        return KerasTensor(output_shape, dtype=dtype)
+class Ldexp(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.ldexp
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.ldexp", "keras.ops.numpy.ldexp"])
@@ -4731,15 +4628,9 @@ def ldexp(x1, x2):
     return backend.ops.numpy.ldexp(x1, x2)
 
 
-class Less(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.less(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class Less(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.less
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.less", "keras.ops.numpy.less"])
@@ -4758,15 +4649,9 @@ def less(x1, x2):
     return backend.ops.numpy.less(x1, x2)
 
 
-class LessEqual(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.less_equal(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class LessEqual(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.less_equal
+    output_dtype = "bool"
 
 
 @keras_export(
@@ -4984,21 +4869,9 @@ def log2(x):
     return backend.ops.numpy.log2(x)
 
 
-class Logaddexp(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.logaddexp(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        dtype = dtypes.promote_to_float_dtype(
-            dtypes.result_type(
-                getattr(x1, "dtype", type(x1)),
-                getattr(x2, "dtype", type(x2)),
-            )
-        )
-        return KerasTensor(output_shape, dtype=dtype)
+class Logaddexp(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.logaddexp
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.logaddexp", "keras.ops.numpy.logaddexp"])
@@ -5020,21 +4893,9 @@ def logaddexp(x1, x2):
     return backend.ops.numpy.logaddexp(x1, x2)
 
 
-class Logaddexp2(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.logaddexp2(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        dtype = dtypes.promote_to_float_dtype(
-            dtypes.result_type(
-                getattr(x1, "dtype", type(x1)),
-                getattr(x2, "dtype", type(x2)),
-            )
-        )
-        return KerasTensor(output_shape, dtype=dtype)
+class Logaddexp2(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.logaddexp2
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.logaddexp2", "keras.ops.numpy.logaddexp2"])
@@ -5062,15 +4923,9 @@ def logaddexp2(x1, x2):
     return backend.ops.numpy.logaddexp2(x1, x2)
 
 
-class LogicalAnd(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.logical_and(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class LogicalAnd(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.logical_and
+    output_dtype = "bool"
 
 
 @keras_export(
@@ -5123,15 +4978,9 @@ def logical_not(x):
     return backend.ops.numpy.logical_not(x)
 
 
-class LogicalOr(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.logical_or(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class LogicalOr(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.logical_or
+    output_dtype = "bool"
 
 
 @keras_export(
@@ -5344,24 +5193,9 @@ def max(x, axis=None, keepdims=False, initial=None):
     )
 
 
-class Maximum(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.maximum(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and x2_sparse
-        return KerasTensor(
-            output_shape, dtype=output_dtype, sparse=output_sparse
-        )
+class Maximum(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.maximum
+    output_sparse_fn = lambda x1_sparse, x2_sparse: x1_sparse and x2_sparse
 
 
 @keras_export(["keras.ops.maximum", "keras.ops.numpy.maximum"])
@@ -5380,24 +5214,31 @@ def maximum(x1, x2):
     return backend.ops.numpy.maximum(x1, x2)
 
 
-class Fmax(Operation):
-    def call(self, x1, x2):
-        return _fmax(x1, x2)
+def _fmax(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "fmax"
+    ):
+        return backend.ops.numpy.fmax(x1, x2)
+    if not isinstance(x1, (int, float)):
+        x1 = backend.ops.convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = backend.ops.convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = backend.ops.convert_to_tensor(x1, dtype)
+    x2 = backend.ops.convert_to_tensor(x2, dtype)
+    res = backend.ops.numpy.maximum(x1, x2)
+    if "float" not in dtype:
+        return res
 
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and x2_sparse
-        return KerasTensor(
-            output_shape, dtype=output_dtype, sparse=output_sparse
-        )
+    res = backend.ops.numpy.where(backend.ops.numpy.isnan(x2), x1, res)
+    return backend.ops.numpy.where(backend.ops.numpy.isnan(x1), x2, res)
+
+
+class Fmax(ElementwiseBinaryOperation):
+    call_fn = _fmax
 
 
 @keras_export(["keras.ops.fmax", "keras.ops.numpy.fmax"])
@@ -5424,29 +5265,6 @@ def fmax(x1, x2):
     if any_symbolic_tensors((x1, x2)):
         return Fmax().symbolic_call(x1, x2)
     return _fmax(x1, x2)
-
-
-def _fmax(x1, x2):
-    if not config._use_backend_agnostic_ops() and hasattr(
-        backend.ops.numpy, "fmax"
-    ):
-        return backend.ops.numpy.fmax(x1, x2)
-    if not isinstance(x1, (int, float)):
-        x1 = backend.ops.convert_to_tensor(x1)
-    if not isinstance(x2, (int, float)):
-        x2 = backend.ops.convert_to_tensor(x2)
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-    )
-    x1 = backend.ops.convert_to_tensor(x1, dtype)
-    x2 = backend.ops.convert_to_tensor(x2, dtype)
-    res = backend.ops.numpy.maximum(x1, x2)
-    if "float" not in dtype:
-        return res
-
-    res = backend.ops.numpy.where(backend.ops.numpy.isnan(x2), x1, res)
-    return backend.ops.numpy.where(backend.ops.numpy.isnan(x1), x2, res)
 
 
 class Median(Operation):
@@ -5622,24 +5440,9 @@ def min(x, axis=None, keepdims=False, initial=None):
     )
 
 
-class Minimum(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.minimum(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and x2_sparse
-        return KerasTensor(
-            output_shape, dtype=output_dtype, sparse=output_sparse
-        )
+class Minimum(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.minimum
+    output_sparse_fn = lambda x1_sparse, x2_sparse: x1_sparse and x2_sparse
 
 
 @keras_export(["keras.ops.minimum", "keras.ops.numpy.minimum"])
@@ -5658,24 +5461,31 @@ def minimum(x1, x2):
     return backend.ops.numpy.minimum(x1, x2)
 
 
-class Fmin(Operation):
-    def call(self, x1, x2):
-        return _fmin(x1, x2)
+def _fmin(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "fmin"
+    ):
+        return backend.ops.numpy.fmin(x1, x2)
+    if not isinstance(x1, (int, float)):
+        x1 = backend.ops.convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = backend.ops.convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = backend.ops.convert_to_tensor(x1, dtype)
+    x2 = backend.ops.convert_to_tensor(x2, dtype)
+    res = backend.ops.numpy.minimum(x1, x2)
+    if "float" not in dtype:
+        return res
 
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and x2_sparse
-        return KerasTensor(
-            output_shape, dtype=output_dtype, sparse=output_sparse
-        )
+    res = backend.ops.numpy.where(backend.ops.numpy.isnan(x2), x1, res)
+    return backend.ops.numpy.where(backend.ops.numpy.isnan(x1), x2, res)
+
+
+class Fmin(ElementwiseBinaryOperation):
+    call_fn = _fmin
 
 
 @keras_export(["keras.ops.fmin", "keras.ops.numpy.fmin"])
@@ -5702,29 +5512,6 @@ def fmin(x1, x2):
     if any_symbolic_tensors((x1, x2)):
         return Fmin().symbolic_call(x1, x2)
     return _fmin(x1, x2)
-
-
-def _fmin(x1, x2):
-    if not config._use_backend_agnostic_ops() and hasattr(
-        backend.ops.numpy, "fmin"
-    ):
-        return backend.ops.numpy.fmin(x1, x2)
-    if not isinstance(x1, (int, float)):
-        x1 = backend.ops.convert_to_tensor(x1)
-    if not isinstance(x2, (int, float)):
-        x2 = backend.ops.convert_to_tensor(x2)
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-    )
-    x1 = backend.ops.convert_to_tensor(x1, dtype)
-    x2 = backend.ops.convert_to_tensor(x2, dtype)
-    res = backend.ops.numpy.minimum(x1, x2)
-    if "float" not in dtype:
-        return res
-
-    res = backend.ops.numpy.where(backend.ops.numpy.isnan(x2), x1, res)
-    return backend.ops.numpy.where(backend.ops.numpy.isnan(x1), x2, res)
 
 
 class Mod(Operation):
@@ -7139,15 +6926,9 @@ def nonzero(x):
     return backend.ops.numpy.nonzero(x)
 
 
-class NotEqual(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.not_equal(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class NotEqual(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.not_equal
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.not_equal", "keras.ops.numpy.not_equal"])
@@ -9127,22 +8908,9 @@ def where(condition, x1=None, x2=None):
     return backend.ops.numpy.where(condition, x1, x2)
 
 
-class Subtract(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.subtract(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and x2_sparse
-        dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
-        return KerasTensor(output_shape, dtype=dtype, sparse=output_sparse)
+class Subtract(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.subtract
+    output_sparse_fn = lambda x1_sparse, x2_sparse: x1_sparse and x2_sparse
 
 
 @keras_export(["keras.ops.subtract", "keras.ops.numpy.subtract"])
@@ -9161,22 +8929,9 @@ def subtract(x1, x2):
     return backend.ops.numpy.subtract(x1, x2)
 
 
-class Multiply(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.multiply(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        x1_sparse = getattr(x1, "sparse", True)
-        x2_sparse = getattr(x2, "sparse", True)
-        output_sparse = x1_sparse or x2_sparse
-        dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
-        return KerasTensor(output_shape, dtype=dtype, sparse=output_sparse)
+class Multiply(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.multiply
+    output_sparse_fn = lambda x1_sparse, x2_sparse: x1_sparse or x2_sparse
 
 
 @keras_export(["keras.ops.multiply", "keras.ops.numpy.multiply"])
@@ -9195,26 +8950,10 @@ def multiply(x1, x2):
     return backend.ops.numpy.multiply(x1, x2)
 
 
-class Divide(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.divide(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.promote_to_float_dtype(
-            dtypes.result_type(
-                getattr(x1, "dtype", type(x1)),
-                getattr(x2, "dtype", type(x2)),
-            )
-        )
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and not x2_sparse
-        return KerasTensor(
-            output_shape, dtype=output_dtype, sparse=output_sparse
-        )
+class Divide(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.divide
+    promote_to_float = True
+    output_sparse_fn = lambda x1_sparse, x2_sparse: x1_sparse and not x2_sparse
 
 
 @keras_export(["keras.ops.divide", "keras.ops.numpy.divide"])
@@ -9233,44 +8972,6 @@ def divide(x1, x2):
     if any_symbolic_tensors((x1, x2)):
         return Divide().symbolic_call(x1, x2)
     return backend.ops.numpy.divide(x1, x2)
-
-
-class DivideNoNan(Operation):
-    def call(self, x1, x2):
-        return _divide_no_nan(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.promote_to_float_dtype(
-            dtypes.result_type(
-                getattr(x1, "dtype", type(x1)),
-                getattr(x2, "dtype", type(x2)),
-            )
-        )
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and not x2_sparse
-        return KerasTensor(
-            output_shape, dtype=output_dtype, sparse=output_sparse
-        )
-
-
-@keras_export(["keras.ops.divide_no_nan", "keras.ops.numpy.divide_no_nan"])
-def divide_no_nan(x1, x2):
-    """Safe element-wise division which returns 0 where the denominator is 0.
-
-    Args:
-        x1: First input tensor.
-        x2: Second input tensor.
-
-    Returns:
-        The quotient `x1/x2`, element-wise, with zero where x2 is zero.
-    """
-    if any_symbolic_tensors((x1, x2)):
-        return DivideNoNan().symbolic_call(x1, x2)
-    return _divide_no_nan(x1, x2)
 
 
 def _divide_no_nan(x1, x2):
@@ -9297,26 +8998,31 @@ def _divide_no_nan(x1, x2):
     )
 
 
-class TrueDivide(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.true_divide(x1, x2)
+class DivideNoNan(ElementwiseBinaryOperation):
+    call_fn = _divide_no_nan
+    promote_to_float = True
 
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.promote_to_float_dtype(
-            dtypes.result_type(
-                getattr(x1, "dtype", type(x1)),
-                getattr(x2, "dtype", type(x2)),
-            )
-        )
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and not x2_sparse
-        return KerasTensor(
-            output_shape, dtype=output_dtype, sparse=output_sparse
-        )
+
+@keras_export(["keras.ops.divide_no_nan", "keras.ops.numpy.divide_no_nan"])
+def divide_no_nan(x1, x2):
+    """Safe element-wise division which returns 0 where the denominator is 0.
+
+    Args:
+        x1: First input tensor.
+        x2: Second input tensor.
+
+    Returns:
+        The quotient `x1/x2`, element-wise, with zero where x2 is zero.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return DivideNoNan().symbolic_call(x1, x2)
+    return _divide_no_nan(x1, x2)
+
+
+class TrueDivide(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.true_divide
+    promote_to_float = True
+    output_sparse_fn = lambda x1_sparse, x2_sparse: x1_sparse and not x2_sparse
 
 
 @keras_export(
@@ -9332,18 +9038,8 @@ def true_divide(x1, x2):
     return backend.ops.numpy.true_divide(x1, x2)
 
 
-class Power(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.power(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)), getattr(x2, "dtype", type(x2))
-        )
-        return KerasTensor(output_shape, dtype=output_dtype)
+class Power(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.power
 
 
 @keras_export(["keras.ops.power", "keras.ops.numpy.power"])
@@ -9362,21 +9058,24 @@ def power(x1, x2):
     return backend.ops.numpy.power(x1, x2)
 
 
-class FloatPower(Operation):
-    def call(self, x1, x2):
-        return _float_power(x1, x2)
+def _float_power(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "float_power"
+    ):
+        return backend.ops.numpy.float_power(x1, x2)
+    x1 = backend.ops.convert_to_tensor(x1)
+    x2 = backend.ops.convert_to_tensor(x2)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
+    x1 = backend.ops.cast(x1, dtype)
+    x2 = backend.ops.cast(x2, dtype)
+    return backend.ops.numpy.power(x1, x2)
 
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
 
-        x1_type = dtypes.result_type(getattr(x1, "dtype", type(x1)))
-        x2_type = dtypes.result_type(getattr(x2, "dtype", type(x2)))
-        dtype = dtypes.promote_to_float_dtype(
-            dtypes.result_type(x1_type, x2_type)
-        )
-        return KerasTensor(output_shape, dtype=dtype)
+class FloatPower(ElementwiseBinaryOperation):
+    call_fn = _float_power
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.float_power", "keras.ops.numpy.float_power"])
@@ -9405,21 +9104,6 @@ def float_power(x1, x2):
     return _float_power(x1, x2)
 
 
-def _float_power(x1, x2):
-    if not config._use_backend_agnostic_ops() and hasattr(
-        backend.ops.numpy, "float_power"
-    ):
-        return backend.ops.numpy.float_power(x1, x2)
-    x1 = backend.ops.convert_to_tensor(x1)
-    x2 = backend.ops.convert_to_tensor(x2)
-    dtype = dtypes.promote_to_float_dtype(
-        dtypes.result_type(x1.dtype, x2.dtype)
-    )
-    x1 = backend.ops.cast(x1, dtype)
-    x2 = backend.ops.cast(x2, dtype)
-    return backend.ops.numpy.power(x1, x2)
-
-
 class Negative(ElementwiseUnaryOperation):
     call_fn = backend.ops.numpy.negative
     preserves_sparse = True
@@ -9440,21 +9124,9 @@ def negative(x):
     return backend.ops.numpy.negative(x)
 
 
-class Nextafter(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.nextafter(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-
-        x1_type = dtypes.result_type(getattr(x1, "dtype", type(x1)))
-        x2_type = dtypes.result_type(getattr(x2, "dtype", type(x2)))
-        dtype = dtypes.promote_to_float_dtype(
-            dtypes.result_type(x1_type, x2_type)
-        )
-        return KerasTensor(output_shape, dtype=dtype)
+class Nextafter(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.nextafter
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.nextafter", "keras.ops.numpy.nextafter"])
@@ -9917,19 +9589,8 @@ def eye(N, M=None, k=0, dtype=None):
     return backend.ops.numpy.eye(N, M=M, k=k, dtype=dtype)
 
 
-class FloorDivide(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.floor_divide(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
-        return KerasTensor(output_shape, dtype=output_dtype)
+class FloorDivide(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.floor_divide
 
 
 @keras_export(["keras.ops.floor_divide", "keras.ops.numpy.floor_divide"])
@@ -9948,15 +9609,9 @@ def floor_divide(x1, x2):
     return backend.ops.numpy.floor_divide(x1, x2)
 
 
-class LogicalXor(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.logical_xor(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class LogicalXor(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.logical_xor
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.logical_xor", "keras.ops.numpy.logical_xor"])
