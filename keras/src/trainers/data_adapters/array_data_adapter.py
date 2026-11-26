@@ -141,6 +141,34 @@ class ArrayDataAdapter(DataAdapter):
         num_samples = self._num_samples
         num_full_batches = int(self._num_samples // batch_size)
 
+        inputs = array_slicing.convert_to_sliceable(
+            self._inputs, target_backend="tensorflow"
+        )
+        inputs = tree.lists_to_tuples(inputs)
+
+        # A single unshuffled batch is returned as the only element. This
+        # skips the pipeline below, which traces its `tf.data` functions on
+        # every call. Sparse and ragged inputs keep the pipeline, which
+        # changes them: it turns a `TensorflowSparseWrapper` back into a
+        # `tf.SparseTensor` and drops any static row length of a ragged tensor.
+        if (
+            self._size == 1
+            and not shuffle
+            and self._num_data_shards == 1
+            and not any(
+                isinstance(x, (tf.SparseTensor, tf.RaggedTensor))
+                for x in tree.flatten(inputs)
+            )
+        ):
+            options = tf.data.Options()
+            options.experimental_optimization.apply_default_optimizations = (
+                False
+            )
+            options.experimental_distribute.auto_shard_policy = (
+                tf.data.experimental.AutoShardPolicy.DATA
+            )
+            return tf.data.Dataset.from_tensors(inputs).with_options(options)
+
         # Vectorized version of shuffle.
         # This is a performance improvement over using `from_tensor_slices`.
         # The indices of the data are shuffled and batched, and these indices
@@ -219,11 +247,6 @@ class ArrayDataAdapter(DataAdapter):
             Returns:
                 A Dataset of input batches matching the batch indices.
             """
-            inputs = array_slicing.convert_to_sliceable(
-                self._inputs, target_backend="tensorflow"
-            )
-            inputs = tree.lists_to_tuples(inputs)
-
             dataset = tf.data.Dataset.zip(
                 (indices_dataset, tf.data.Dataset.from_tensors(inputs).repeat())
             )
@@ -269,7 +292,7 @@ class ArrayDataAdapter(DataAdapter):
         if shuffle == "batch":
             indices_dataset = indices_dataset.map(self._tf_shuffle)
 
-        dataset = slice_inputs(indices_dataset, self._inputs)
+        dataset = slice_inputs(indices_dataset, inputs)
 
         options = tf.data.Options()
         options.experimental_distribute.auto_shard_policy = (

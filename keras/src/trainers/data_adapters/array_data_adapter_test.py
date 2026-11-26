@@ -1,3 +1,5 @@
+from unittest import mock
+
 import jax
 import jax.experimental.sparse as jax_sparse
 import numpy as np
@@ -142,6 +144,223 @@ class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
             self.assertNotAllClose(x_order, list(range(34)))
         else:
             self.assertAllClose(x_order, list(range(34)))
+
+    @parameterized.named_parameters(
+        named_product(
+            array_type=[
+                "np",
+                "tf",
+                "jax",
+                "torch",
+                "pandas_data_frame",
+                "pandas_series",
+            ],
+            num_samples=[5, 16],
+        )
+        + named_product(
+            array_type=["tf_ragged", "tf_sparse", "jax_sparse", "scipy_sparse"],
+            num_samples=[5],
+        )
+    )
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
+    def test_tf_dataset_single_batch(self, array_type, num_samples):
+        x = self.make_array(array_type, (num_samples, 4), "float64")
+        y = self.make_array(array_type, (num_samples, 2), "int32")
+        xdim1 = 1 if array_type == "pandas_series" else 4
+        ydim1 = 1 if array_type == "pandas_series" else 2
+        if array_type == "tf_ragged":
+            expected_class = tf.RaggedTensor
+            xdim1 = None
+            ydim1 = None
+        elif array_type in ("tf_sparse", "jax_sparse", "scipy_sparse"):
+            expected_class = tf.SparseTensor
+        else:
+            expected_class = tf.Tensor
+
+        adapter = array_data_adapter.ArrayDataAdapter(
+            x,
+            y=y,
+            sample_weight=None,
+            batch_size=16,
+            steps=None,
+            shuffle=False,
+        )
+        self.assertEqual(adapter.num_batches, 1)
+
+        dataset, num_traced = self._get_tf_dataset_and_num_traced(adapter)
+        if expected_class is tf.Tensor:
+            self.assertEqual(num_traced, 0)
+        else:
+            self.assertGreater(num_traced, 0)
+        options = dataset.options()
+        self.assertIs(
+            options.experimental_optimization.apply_default_optimizations,
+            False,
+        )
+        self.assertEqual(
+            options.experimental_distribute.auto_shard_policy,
+            tf.data.experimental.AutoShardPolicy.DATA,
+        )
+
+        batches = list(dataset)
+        self.assertEqual(len(batches), 1)
+        bx, by = batches[0]
+        self.assertIsInstance(bx, expected_class)
+        self.assertIsInstance(by, expected_class)
+        self.assertEqual(standardize_dtype(bx.dtype), config.floatx())
+        self.assertEqual(standardize_dtype(by.dtype), "int32")
+        self.assertEqual(bx.shape, (num_samples, xdim1))
+        self.assertEqual(by.shape, (num_samples, ydim1))
+        if expected_class is tf.Tensor:
+            # The batch size is statically known. The general pipeline only
+            # knows it when the batch is full.
+            x_spec, y_spec = dataset.element_spec
+            self.assertEqual(x_spec.shape[0], num_samples)
+            self.assertEqual(y_spec.shape[0], num_samples)
+
+        if isinstance(bx, tf.SparseTensor):
+            bx = tf.sparse.to_dense(bx)
+            by = tf.sparse.to_dense(by)
+        self.assertAllClose(
+            [float(bx[j, 0]) for j in range(num_samples)],
+            list(range(num_samples)),
+        )
+        self.assertAllClose(
+            [float(by[j, 0]) for j in range(num_samples)],
+            list(range(num_samples)),
+        )
+
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
+    def test_tf_dataset_single_batch_x_only(self):
+        # `predict()` passes `x` only: the element is the batch, not a tuple.
+        x = self.make_array("np", (16, 4), "float64")
+        adapter = array_data_adapter.ArrayDataAdapter(
+            x, batch_size=16, shuffle=False
+        )
+        dataset, num_traced = self._get_tf_dataset_and_num_traced(adapter)
+        self.assertEqual(num_traced, 0)
+        batches = list(dataset)
+        self.assertEqual(len(batches), 1)
+        self.assertIsInstance(batches[0], tf.Tensor)
+        self.assertEqual(standardize_dtype(batches[0].dtype), config.floatx())
+        self.assertAllClose(batches[0], x)
+
+        # One more sample needs a second batch and the general pipeline.
+        x = self.make_array("np", (17, 4), "float64")
+        adapter = array_data_adapter.ArrayDataAdapter(
+            x, batch_size=16, shuffle=False
+        )
+        dataset, num_traced = self._get_tf_dataset_and_num_traced(adapter)
+        self.assertGreater(num_traced, 0)
+        self.assertEqual(
+            [tuple(batch.shape) for batch in dataset], [(16, 4), (1, 4)]
+        )
+
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
+    def test_tf_dataset_single_batch_nested(self):
+        x1 = self.make_array("np", (5, 4), "float64")
+        x2 = self.make_array("np", (5, 3), "float32")
+        y1 = self.make_array("np", (5, 2), "int32")
+        y2 = self.make_array("np", (5, 1), "int32")
+        sample_weight = np.ones((5,), dtype="float32")
+
+        adapter = array_data_adapter.ArrayDataAdapter(
+            {"a": x1, "b": x2},
+            y=[y1, y2],
+            sample_weight=sample_weight,
+            batch_size=16,
+            shuffle=False,
+        )
+        dataset, num_traced = self._get_tf_dataset_and_num_traced(adapter)
+        self.assertEqual(num_traced, 0)
+        batches = list(dataset)
+        self.assertEqual(len(batches), 1)
+        bx, by, bw = batches[0]
+        self.assertIsInstance(bx, dict)
+        # NOTE: the y list was converted to a tuple for tf.data compatibility.
+        self.assertIsInstance(by, tuple)
+        self.assertIsInstance(bw, tuple)
+        self.assertEqual(standardize_dtype(bx["a"].dtype), config.floatx())
+        self.assertAllClose(bx["a"], x1)
+        self.assertAllClose(bx["b"], x2)
+        self.assertAllClose(by[0], y1)
+        self.assertAllClose(by[1], y2)
+        self.assertAllClose(bw[0], sample_weight)
+        self.assertAllClose(bw[1], sample_weight)
+
+        # A single sparse input is enough to use the general pipeline.
+        adapter = array_data_adapter.ArrayDataAdapter(
+            {"a": x1, "b": self.make_array("tf_sparse", (5, 3), "float32")},
+            y=[y1, y2],
+            sample_weight=sample_weight,
+            batch_size=16,
+            shuffle=False,
+        )
+        dataset, num_traced = self._get_tf_dataset_and_num_traced(adapter)
+        self.assertGreater(num_traced, 0)
+        batches = list(dataset)
+        self.assertEqual(len(batches), 1)
+        bx, by, bw = batches[0]
+        self.assertIsInstance(bx["a"], tf.Tensor)
+        self.assertIsInstance(bx["b"], tf.SparseTensor)
+        self.assertAllClose(bx["a"], x1)
+        self.assertAllClose(tf.sparse.to_dense(bx["b"]), x2)
+
+    @parameterized.named_parameters(named_product(shuffle=[True, "batch"]))
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
+    def test_tf_dataset_single_batch_shuffle(self, shuffle):
+        x = self.make_array("np", (5, 4), "float32")
+        y = self.make_array("np", (5, 2), "int32")
+        adapter = array_data_adapter.ArrayDataAdapter(
+            x, y=y, batch_size=16, shuffle=shuffle
+        )
+        self.assertEqual(adapter.num_batches, 1)
+
+        dataset, num_traced = self._get_tf_dataset_and_num_traced(adapter)
+        self.assertGreater(num_traced, 0)
+        batches = list(dataset)
+        self.assertEqual(len(batches), 1)
+        bx, by = batches[0]
+        self.assertAllClose(sorted(bx[:, 0].numpy().tolist()), list(range(5)))
+        self.assertAllClose(bx[:, 0], by[:, 0])
+
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
+    def test_tf_dataset_single_batch_sharding(self):
+        # Sharded data uses the general pipeline, also for a single batch:
+        # only one of the shards gets the batch.
+        x = self.make_array("np", (5, 4), "float32")
+        y = self.make_array("np", (5, 2), "int32")
+        num_batches = []
+        for process_id in range(2):
+            dist = dist_lib.DataParallel(devices=["cpu:0"] * 2)
+            dist._num_processes = 2
+            dist._process_id = process_id
+            dist.auto_shard_dataset = True
+            with dist.scope():
+                adapter = array_data_adapter.ArrayDataAdapter(
+                    x, y=y, batch_size=16, shuffle=False
+                )
+            self.assertEqual(adapter._num_data_shards, 2)
+
+            dataset, num_traced = self._get_tf_dataset_and_num_traced(adapter)
+            self.assertGreater(num_traced, 0)
+            batches = list(dataset)
+            self.assertEqual(len(batches), adapter.num_batches)
+            num_batches.append(len(batches))
+        self.assertEqual(num_batches, [1, 0])
+
+    def _get_tf_dataset_and_num_traced(self, adapter):
+        """Returns `adapter.get_tf_dataset()` and how many `map` calls it made.
+
+        Each `map` call on a `tf.data.Dataset` traces the function it is
+        given. The general pipeline makes at least two such calls.
+        """
+        dataset_map = tf.data.Dataset.map
+        with mock.patch.object(
+            tf.data.Dataset, "map", autospec=True, side_effect=dataset_map
+        ) as map_mock:
+            dataset = adapter.get_tf_dataset()
+        return dataset, map_mock.call_count
 
     @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
     def test_tf_sparse_trailing_empty_rows(self):
