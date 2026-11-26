@@ -56,6 +56,16 @@ class WrapperLayer(keras.layers.Wrapper):
         return self.layer(x)
 
 
+class ConstructorRecorder(keras.layers.Layer):
+    """Records every direct call to its constructor."""
+
+    calls = []
+
+    def __init__(self, *args, **kwargs):
+        ConstructorRecorder.calls.append((args, kwargs))
+        super().__init__()
+
+
 class SerializationLibTest(testing.TestCase):
     def roundtrip(self, obj, custom_objects=None, safe_mode=True):
         serialized = serialization_lib.serialize_keras_object(obj)
@@ -260,6 +270,99 @@ class SerializationLibTest(testing.TestCase):
             TypeError, "Expected 'config' to be a non-null str"
         ):
             serialization_lib.deserialize_keras_object(bad_config)
+
+    def test_function_config_resolving_to_class_raises(self):
+        configs = [
+            # Public API name of a class.
+            {
+                "module": "keras.layers",
+                "class_name": "function",
+                "config": "Dense",
+                "registered_name": "Dense",
+            },
+            # Internal module path of the same class.
+            {
+                "module": "keras.src.layers.core.dense",
+                "class_name": "function",
+                "config": "Dense",
+                "registered_name": "Dense",
+            },
+            # A class passed in `custom_objects`.
+            {
+                "module": None,
+                "class_name": "function",
+                "config": "ConstructorRecorder",
+                "registered_name": "ConstructorRecorder",
+            },
+        ]
+        for config in configs:
+            for safe_mode in (True, False):
+                with self.assertRaisesRegex(
+                    TypeError, "must refer to a function, not a class"
+                ):
+                    serialization_lib.deserialize_keras_object(
+                        config,
+                        custom_objects={
+                            "ConstructorRecorder": ConstructorRecorder
+                        },
+                        safe_mode=safe_mode,
+                    )
+
+    def test_function_config_still_resolves_functions(self):
+        for config in (
+            serialization_lib.serialize_keras_object(keras.activations.relu),
+            {
+                "module": "builtins",
+                "class_name": "function",
+                "config": "relu",
+                "registered_name": "relu",
+            },
+        ):
+            obj = serialization_lib.deserialize_keras_object(config)
+            self.assertIs(obj, keras.activations.relu)
+        obj = serialization_lib.deserialize_keras_object(
+            serialization_lib.serialize_keras_object(custom_fn),
+            custom_objects={"custom_fn": custom_fn},
+        )
+        self.assertIs(obj, custom_fn)
+
+    def test_lambda_function_config_cannot_call_a_constructor(self):
+        # A `Lambda` calls `function(inputs, **arguments)`. If its function
+        # config resolved to a class, reloading the model would call that
+        # class's constructor with values taken from the config, without
+        # going through `from_config()`.
+        inputs = keras.Input((2,))
+        outputs = keras.layers.Lambda(keras.activations.relu, name="lambda")(
+            inputs
+        )
+        model = keras.Model(inputs, outputs)
+        config = serialization_lib.serialize_keras_object(model)
+        lambda_config = next(
+            layer
+            for layer in config["config"]["layers"]
+            if layer["name"] == "lambda"
+        )
+        lambda_config["config"]["function"] = {
+            "module": None,
+            "class_name": "function",
+            "config": "ConstructorRecorder",
+            "registered_name": "ConstructorRecorder",
+        }
+        lambda_config["inbound_nodes"][0] = {
+            "args": [],
+            "kwargs": {"inputs": "value-from-config"},
+        }
+        ConstructorRecorder.calls.clear()
+        for safe_mode in (True, False):
+            with self.assertRaisesRegex(
+                TypeError, "must refer to a function, not a class"
+            ):
+                serialization_lib.deserialize_keras_object(
+                    json.loads(json.dumps(config)),
+                    custom_objects={"ConstructorRecorder": ConstructorRecorder},
+                    safe_mode=safe_mode,
+                )
+        self.assertEqual(ConstructorRecorder.calls, [])
 
     def test_safe_mode_scope(self):
         lmbda = keras.layers.Lambda(lambda x: x**2)

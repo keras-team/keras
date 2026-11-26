@@ -799,7 +799,7 @@ def deserialize_keras_object(
                 f"instead got {type(fn_name)}\n"
                 f"Full config: {config}"
             )
-        return _retrieve_class_or_fn(
+        fn = _retrieve_class_or_fn(
             fn_name,
             registered_name,
             module,
@@ -807,6 +807,21 @@ def deserialize_keras_object(
             full_config=config,
             custom_objects=custom_objects,
         )
+        # A function config must resolve to a standalone function. Returning
+        # a class here would let the caller invoke its constructor directly
+        # (e.g. `Lambda` calls `function(inputs, **arguments)`), bypassing
+        # `from_config()`, which is where objects are deserialized and where
+        # their safe mode checks live.
+        if inspect.isclass(fn):
+            raise TypeError(
+                f"Could not deserialize function '{fn_name}' because it "
+                f"resolved to the class `{fn.__module__}.{fn.__qualname__}`. "
+                "A config with `class_name='function'` must refer to a "
+                "function, not a class. Objects are deserialized from a "
+                "config with their own `class_name`, through `from_config()`. "
+                f"Full object config: {config}"
+            )
+        return fn
     # Below, handling of all classes.
     if not isinstance(inner_config, dict):
         raise TypeError(
