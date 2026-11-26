@@ -10121,32 +10121,31 @@ def _correlate(x1, x2, mode="valid"):
     x2 = backend.ops.cast(x2, dtype)
     x1_len = backend.ops.shape(x1)[0]
     x2_len = backend.ops.shape(x2)[0]
-    full_len = x1_len + x2_len - 1
-    x1 = backend.ops.numpy.pad(x1, [(x2_len - 1, x2_len - 1)])
-    indices = backend.ops.numpy.add(
-        backend.ops.numpy.expand_dims(
-            backend.ops.numpy.arange(full_len), axis=1
-        ),
-        backend.ops.numpy.arange(x2_len),
-    )
-    output = backend.ops.numpy.matmul(backend.ops.numpy.take(x1, indices), x2)
-    if mode == "full":
-        return output
     len_diff = builtins.abs(x1_len - x2_len)
-    shorter_len = (x1_len + x2_len - len_diff) // 2
     if mode == "valid":
-        start = shorter_len - 1
-        output_len = len_diff + 1
+        pad = (x2_len - x1_len + len_diff) // 2
     else:
-        start = backend.ops.numpy.where(
-            backend.ops.numpy.less(x1_len, x2_len),
-            shorter_len // 2,
-            (shorter_len - 1) // 2,
-        )
-        output_len = shorter_len + len_diff
+        pad = x2_len - 1
+    x1 = backend.ops.numpy.pad(x1, [(pad, pad)])
+    output = backend.ops.nn.conv(
+        backend.ops.numpy.reshape(x1, (1, -1, 1)),
+        backend.ops.numpy.reshape(x2, (-1, 1, 1)),
+        data_format="channels_last",
+    )
+    output = backend.ops.numpy.reshape(output, (-1,))
+    if mode != "same":
+        return output
+    shorter_len = (x1_len + x2_len - len_diff) // 2
+    start = backend.ops.numpy.where(
+        backend.ops.numpy.less(x1_len, x2_len),
+        shorter_len // 2,
+        (shorter_len - 1) // 2,
+    )
     return backend.ops.numpy.take(
         output,
-        backend.ops.numpy.add(backend.ops.numpy.arange(output_len), start),
+        backend.ops.numpy.add(
+            backend.ops.numpy.arange(shorter_len + len_diff), start
+        ),
     )
 
 
