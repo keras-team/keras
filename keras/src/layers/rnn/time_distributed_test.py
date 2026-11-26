@@ -18,7 +18,7 @@ class TimeDistributedTest(testing.TestCase):
             expected_output_shape=(3, 2, 1),
             expected_num_trainable_weights=1,
             expected_num_non_trainable_weights=0,
-            supports_masking=False,
+            supports_masking=True,
         )
 
     def test_build(self):

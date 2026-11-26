@@ -16,7 +16,7 @@ class SimpleRNNTest(testing.TestCase):
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
             expected_num_non_trainable_variables=1,
-            supports_masking=False,
+            supports_masking=True,
         )
         self.run_layer_test(
             layers.SimpleRNN,
@@ -32,7 +32,7 @@ class SimpleRNNTest(testing.TestCase):
             expected_num_losses=3,
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=False,
+            supports_masking=True,
         )
 
     def test_seed_is_serialized(self):

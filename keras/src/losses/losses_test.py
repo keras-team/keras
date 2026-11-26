@@ -2617,6 +2617,22 @@ class CTCTest(testing.TestCase):
         output = losses.CTC(dtype="bfloat16")(y_true, logits)
         self.assertDType(output, "bfloat16")
 
+    def test_per_step_mask(self):
+        # A per-step mask, e.g. from an RNN after `Masking`, with one loss
+        # value per sequence.
+        logits = (np.arange(24).reshape((2, 4, 3)).astype("float32") - 12) / 100
+        y_true = np.array(([[1, 2, 1, 0], [1, 2, 0, 2]]))
+        per_sequence = losses.CTC(reduction=None)(y_true, logits)
+        logits = ops.convert_to_tensor(logits)
+        mask = [[True, True, True, False], [False, False, False, False]]
+        set_keras_mask(logits, ops.convert_to_tensor(mask))
+        output = losses.CTC()(y_true, logits)
+        self.assertAllClose(output, per_sequence[0])
+
+        all_masked = ops.convert_to_tensor([[False] * 4, [False] * 4])
+        set_keras_mask(logits, all_masked)
+        self.assertAllClose(losses.CTC()(y_true, logits), 0.0)
+
 
 class DiceTest(testing.TestCase):
     def test_config(self):

@@ -60,7 +60,7 @@ class DropoutRNNCellTest(testing.TestCase):
             expected_num_trainable_weights=2,
             expected_num_non_trainable_weights=0,
             expected_num_non_trainable_variables=1,
-            supports_masking=False,
+            supports_masking=True,
             run_mixed_precision_check=False,
         )
 
@@ -85,6 +85,6 @@ class DropoutRNNCellTest(testing.TestCase):
                 expected_num_trainable_weights=2,
                 expected_num_non_trainable_weights=0,
                 expected_num_non_trainable_variables=1,
-                supports_masking=False,
+                supports_masking=True,
                 run_mixed_precision_check=False,
             )

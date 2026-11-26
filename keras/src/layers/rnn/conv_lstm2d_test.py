@@ -18,7 +18,7 @@ class ConvLSTM2DTest(testing.TestCase):
             ),
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=False,
+            supports_masking=True,
         )
         self.run_layer_test(
             layers.ConvLSTM2D,
@@ -35,7 +35,7 @@ class ConvLSTM2DTest(testing.TestCase):
             ),
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=False,
+            supports_masking=True,
         )
         self.run_layer_test(
             layers.ConvLSTM2D,
@@ -51,7 +51,7 @@ class ConvLSTM2DTest(testing.TestCase):
             ),
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=False,
+            supports_masking=True,
         )
 
     def test_correctness(self):

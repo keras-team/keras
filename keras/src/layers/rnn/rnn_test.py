@@ -75,7 +75,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=2,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=False,
+            supports_masking=True,
         )
         self.run_layer_test(
             layers.RNN,
@@ -85,7 +85,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=2,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=False,
+            supports_masking=True,
         )
         self.run_layer_test(
             layers.RNN,
@@ -95,7 +95,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=2,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=False,
+            supports_masking=True,
         )
         self.run_layer_test(
             layers.RNN,
@@ -105,7 +105,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=2,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=False,
+            supports_masking=True,
         )
         self.run_layer_test(
             layers.RNN,
@@ -119,7 +119,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=2,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=False,
+            supports_masking=True,
         )
         self.run_layer_test(
             layers.RNN,
@@ -129,7 +129,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=False,
+            supports_masking=True,
         )
         self.run_layer_test(
             layers.RNN,
@@ -139,7 +139,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=False,
+            supports_masking=True,
         )
         self.run_layer_test(
             layers.RNN,
@@ -149,7 +149,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=False,
+            supports_masking=True,
         )
 
     def test_compute_output_shape_single_state(self):
