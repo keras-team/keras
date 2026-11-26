@@ -1118,12 +1118,22 @@ class BaseTrainer:
                 "compiled optimizer and loss functions may not track the "
                 "correct variables. Please recompile your model "
                 "(e.g. `model.compile(...)`) before calling `fit()` or "
-                "`evaluate()` so the change takes effect. "
+                "`train_on_batch()` so the change takes effect. "
                 f"Changed layers: {changed_layers}",
                 stacklevel=2,
             )
             # Update the state so we only warn once per compile
             self._compiled_trainable_state = current_state
+
+    def _post_build(self):
+        super()._post_build()
+        # Layers built after `compile()` use their state at build as baseline.
+        if hasattr(self, "_compiled_trainable_state"):
+            # A new dict, since TF can't save a tracked one that was mutated.
+            state = dict(self._compiled_trainable_state)
+            for layer in self._flatten_layers():
+                state.setdefault(layer, layer.trainable)
+            self._compiled_trainable_state = state
 
     def _assert_compile_called(self, method_name=None):
         if not self.compiled:
@@ -1133,6 +1143,8 @@ class BaseTrainer:
             else:
                 msg += f"calling `{method_name}()`."
             raise ValueError(msg)
+        # `trainable` has no effect on evaluation.
+        if method_name in ("fit", "train_on_batch"):
             self._warn_if_trainable_state_changed()
 
     def _get_unbuilt_components(self):
