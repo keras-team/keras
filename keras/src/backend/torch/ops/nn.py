@@ -11,6 +11,7 @@ from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import validate_ctc_loss_lengths
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -1170,6 +1171,23 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     output = convert_to_tensor(output)
     target_length = convert_to_tensor(target_length)
     output_length = convert_to_tensor(output_length)
+    # Skip under compile/tracing/meta: `.tolist()` would break the graph.
+    is_compiling = hasattr(torch.compiler, "is_compiling") and (
+        torch.compiler.is_compiling()
+    )
+    if (
+        not is_compiling
+        and not torch.jit.is_scripting()
+        and not torch.jit.is_tracing()
+        and target_length.device.type != "meta"
+        and output_length.device.type != "meta"
+    ):
+        validate_ctc_loss_lengths(
+            target.shape[1],
+            output.shape[1],
+            target_length.detach().cpu().reshape(-1).tolist(),
+            output_length.detach().cpu().reshape(-1).tolist(),
+        )
 
     # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
     dtype = result_type(output.dtype, "float32")

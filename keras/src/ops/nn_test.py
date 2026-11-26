@@ -2844,6 +2844,25 @@ class NNOpsCorrectnessTest(testing.TestCase):
             tpu_rtol=1e-2,
         )
 
+    def test_ctc_loss_rejects_oversize_lengths(self):
+        # target width 1, logits time 2 — lengths must not exceed those axes.
+        labels = np.array([[1]], dtype="int32")
+        outputs = np.ones((1, 2, 2), dtype="float32")
+        with self.assertRaisesRegex(ValueError, r"target_length"):
+            knn.ctc_loss(
+                labels,
+                outputs,
+                np.array([2], dtype="int32"),
+                np.array([2], dtype="int32"),
+            )
+        with self.assertRaisesRegex(ValueError, r"output_length"):
+            knn.ctc_loss(
+                labels,
+                outputs,
+                np.array([1], dtype="int32"),
+                np.array([3], dtype="int32"),
+            )
+
     def test_ctc_decode(self):
         inputs = np.array(
             [

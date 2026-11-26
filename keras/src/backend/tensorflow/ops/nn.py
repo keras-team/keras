@@ -10,6 +10,7 @@ from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import validate_ctc_loss_lengths
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -1702,7 +1703,26 @@ def batch_normalization(
 def ctc_loss(target, output, target_length, output_length, mask_index=0):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
+    target_length = convert_to_tensor(target_length)
+    output_length = convert_to_tensor(output_length)
     target = tf.cast(target, dtype="int32")
+    # Concrete length bound check. Prefer static values; fall back to
+    # `.numpy()` only in eager mode. Pure graph tracing skips the check.
+    target_length_values = tf.get_static_value(tf.reshape(target_length, [-1]))
+    output_length_values = tf.get_static_value(tf.reshape(output_length, [-1]))
+    if (
+        (target_length_values is None or output_length_values is None)
+        and tf.executing_eagerly()
+    ):
+        target_length_values = tf.reshape(target_length, [-1]).numpy()
+        output_length_values = tf.reshape(output_length, [-1]).numpy()
+    if target_length_values is not None and output_length_values is not None:
+        validate_ctc_loss_lengths(
+            target.shape[1],
+            output.shape[1],
+            target_length_values,
+            output_length_values,
+        )
 
     # `tf.nn.ctc_loss` will internally cast to float32 when the input is float16
     # or bfloat16. Additionally, it will raise an error when the input is

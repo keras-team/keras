@@ -740,3 +740,33 @@ def empty_scan_ys_spec(compute_output_spec, f, init, xs):
         )
     _, ys_spec = compute_output_spec(f, init_spec, xs_spec)
     return ys_spec
+
+
+def validate_ctc_loss_lengths(
+    max_label_length,
+    max_output_length,
+    target_length_values,
+    output_length_values,
+):
+    """Raise ValueError if CTC lengths exceed the corresponding tensor axes.
+
+    `target_length_values` / `output_length_values` are flat Python iterables of
+    ints from an eager length vector. When an axis size is not a static `int`,
+    that side of the check is skipped (dynamic shapes).
+    """
+    if isinstance(max_label_length, int):
+        for length in target_length_values:
+            if int(length) > max_label_length:
+                raise ValueError(
+                    "`target_length` must be at most "
+                    f"target.shape[1]={max_label_length}. "
+                    f"Received a value of {int(length)}."
+                )
+    if isinstance(max_output_length, int):
+        for length in output_length_values:
+            if int(length) > max_output_length:
+                raise ValueError(
+                    "`output_length` must be at most "
+                    f"output.shape[1]={max_output_length}. "
+                    f"Received a value of {int(length)}."
+                )

@@ -10,6 +10,7 @@ from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import validate_ctc_loss_lengths
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -1053,6 +1054,12 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     output_length = convert_to_tensor(output_length, "int32")
     batch_size, max_input_length, num_classes = output.shape
     batch_size, max_label_length = target.shape
+    validate_ctc_loss_lengths(
+        max_label_length,
+        max_input_length,
+        np.asarray(target_length).reshape(-1),
+        np.asarray(output_length).reshape(-1),
+    )
     log_epsilon = -1e5
 
     # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
