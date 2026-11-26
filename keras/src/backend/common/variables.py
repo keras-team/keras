@@ -1,14 +1,15 @@
 import numpy as np
 
 from keras.src import backend
-from keras.src.api_export import keras_export
 from keras.src.backend import config
-from keras.src.backend.common import dtypes
 from keras.src.backend.common import global_state
+from keras.src.backend.common.autocast_scope import get_autocast_scope
+from keras.src.backend.common.dtypes import is_float_dtype
+from keras.src.backend.common.dtypes import standardize_dtype
 from keras.src.backend.common.name_scope import current_path
+from keras.src.backend.common.standardization import standardize_shape
 from keras.src.backend.common.stateless_scope import get_stateless_scope
 from keras.src.backend.common.stateless_scope import in_stateless_scope
-from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.naming import auto_name
 
 
@@ -579,103 +580,6 @@ def initialize_all_variables():
     global_state.set_global_attribute("uninitialized_variables", [])
 
 
-@keras_export(
-    ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
-)
-def standardize_dtype(dtype):
-    # Fast path: an already-canonical dtype string is by far the common case
-    # and needs none of the normalization below.
-    if isinstance(dtype, str) and dtype in dtypes.ALLOWED_DTYPES_SET:
-        return dtype
-    if dtype is None:
-        return config.floatx()
-    dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
-    if hasattr(dtype, "name"):
-        dtype = dtype.name.lower()
-    elif hasattr(dtype, "__name__"):
-        dtype = dtype.__name__
-    elif hasattr(dtype, "__str__") and (
-        "torch" in str(dtype)
-        or "jax.numpy" in str(dtype)
-        or "mlx" in str(dtype)
-    ):
-        dtype = str(dtype).split(".")[-1]
-
-    if dtype not in dtypes.ALLOWED_DTYPES_SET:
-        raise ValueError(f"Invalid dtype: {dtype}")
-    return dtype
-
-
-def standardize_shape(shape):
-    if not isinstance(shape, tuple):
-        if shape is None:
-            raise ValueError("Undefined shapes are not supported.")
-        if not hasattr(shape, "__iter__"):
-            raise ValueError(f"Cannot convert '{shape}' to a shape.")
-        if config.backend() == "tensorflow":
-            if isinstance(shape, tf.TensorShape):
-                if shape.rank is None:
-                    raise ValueError(
-                        "Tensors with unknown rank are not supported. "
-                        f"Received a tensor with shape: {shape}. This "
-                        "commonly happens with `tf.numpy_function` or "
-                        "`tf.py_function` in a `tf.data` pipeline, which "
-                        "discard static shape information. Specify the "
-                        "shape explicitly, e.g. with `tensor.set_shape(...)` "
-                        "or `tf.ensure_shape(tensor, shape)`."
-                    )
-                # `tf.TensorShape` may contain `Dimension` objects.
-                # We need to convert the items in it to either int or `None`
-                shape = shape.as_list()
-
-    if config.backend() == "jax":
-        # Replace `_DimExpr` (dimension expression) with None
-        from jax import export as jax_export
-
-        shape = tuple(
-            None if jax_export.is_symbolic_dim(d) else d for d in shape
-        )
-
-    if config.backend() == "torch":
-        # Replace symbolic dimensions with None to preserve dynamic shapes
-        # during torch.export tracing
-        import torch
-
-        shape = tuple(None if isinstance(d, torch.SymInt) else d for d in shape)
-
-    # Handle dimensions that are not ints and not None, verify they're >= 0.
-    standardized_shape = []
-    for d in shape:
-        if d is None:
-            standardized_shape.append(d)
-            continue
-
-        # Reject these even if they can be cast to int successfully.
-        if isinstance(d, (str, float)):
-            raise ValueError(
-                f"Cannot convert '{shape}' to a shape. "
-                f"Found invalid dimension '{d}' of type '{type(d)}'. "
-            )
-
-        try:
-            # Cast numpy scalars, tf constant tensors, etc.
-            d = int(d)
-        except Exception as e:
-            raise ValueError(
-                f"Cannot convert '{shape}' to a shape. "
-                f"Found invalid dimension '{d}' of type '{type(d)}'. "
-            ) from e
-        if d < 0:
-            raise ValueError(
-                f"Cannot convert '{shape}' to a shape. "
-                "Negative dimensions are not allowed."
-            )
-        standardized_shape.append(d)
-
-    # This also turns subclasses of `tuple` (e.g. `torch.Size`) to plain tuple.
-    return tuple(standardized_shape)
-
-
 def shape_equal(a_shape, b_shape):
     """Return whether a_shape == b_shape (allows None entries)."""
     if len(a_shape) != len(b_shape):
@@ -684,53 +588,3 @@ def shape_equal(a_shape, b_shape):
         if e1 is not None and e2 is not None and e1 != e2:
             return False
     return True
-
-
-@keras_export("keras.backend.is_float_dtype")
-def is_float_dtype(dtype):
-    dtype = standardize_dtype(dtype)
-    return dtype.startswith("float") or dtype.startswith("bfloat")
-
-
-@keras_export("keras.backend.is_int_dtype")
-def is_int_dtype(dtype):
-    dtype = standardize_dtype(dtype)
-    return dtype.startswith("int") or dtype.startswith("uint")
-
-
-def get_autocast_scope():
-    return global_state.get_global_attribute("autocast_scope")
-
-
-class AutocastScope:
-    """Context manager that enables the autocasting of float variables.
-
-    Under this context manager, float `Variables`s will be cast to `dtype`
-    (note that `dtype` must also be float).
-    """
-
-    def __init__(self, dtype):
-        if dtype is not None:
-            dtype = standardize_dtype(dtype)
-            if not is_float_dtype(dtype):
-                raise ValueError(
-                    "`AutocastScope` can only be used with "
-                    "a floating-point target dtype, such as 'float16'. "
-                    f"Received: dtype={dtype}"
-                )
-        self.dtype = dtype
-        self.original_scope = None
-
-    def maybe_cast(self, value):
-        from keras.src import backend
-
-        if self.dtype is not None and is_float_dtype(value.dtype):
-            return backend.ops.cast(value, dtype=self.dtype)
-        return value
-
-    def __enter__(self):
-        self.original_scope = get_autocast_scope()
-        global_state.set_global_attribute("autocast_scope", self)
-
-    def __exit__(self, *args, **kwargs):
-        global_state.set_global_attribute("autocast_scope", self.original_scope)

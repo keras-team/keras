@@ -267,7 +267,24 @@ class DtypesTest(test_case.TestCase):
         ):
             result_type("float8_e5m2", "bfloat16")
 
-    def test_standardize_int(self):
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_standardize_dtype(self, dtype):
+        x = backend.ops.convert_to_tensor(0.0, dtype)
+        actual = dtypes.standardize_dtype(x.dtype)
+        if dtype is None:
+            self.assertEqual(actual, config.floatx())
+        else:
+            self.assertEqual(actual, dtype)
+
+    @parameterized.named_parameters(named_product(dtype=X64_DTYPES))
+    @pytest.mark.skipif(not X64_SUPPORTED, reason="Needs `explicit_x64`.")
+    def test_standardize_dtype_x64(self, dtype):
+        with x64_mode_scope("explicit_x64"):
+            x = backend.ops.convert_to_tensor(0.0, dtype)
+            actual = dtypes.standardize_dtype(x.dtype)
+            self.assertEqual(actual, dtype)
+
+    def test_standardize_dtype_int(self):
         # TensorFlow keeps int32 variables on the CPU.
         expected = "int64" if config.backend() == "tensorflow" else "int32"
         self.assertEqual(dtypes.standardize_dtype(int), expected)
