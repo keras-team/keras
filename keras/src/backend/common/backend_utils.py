@@ -740,3 +740,4 @@ def empty_scan_ys_spec(compute_output_spec, f, init, xs):
         )
     _, ys_spec = compute_output_spec(f, init_spec, xs_spec)
     return ys_spec
+

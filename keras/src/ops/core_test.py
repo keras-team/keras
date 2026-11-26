@@ -943,6 +943,35 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         xs = np.arange(10)
         self.assertAllClose(ops.map(f, xs), xs**2)
 
+        # Empty leading axis should return an empty stacked output.
+        empty = np.zeros((0,), dtype="float32")
+        empty_out = ops.map(lambda x: x * 2, empty)
+        self.assertEqual(tuple(empty_out.shape), (0,))
+        self.assertEqual(
+            standardize_dtype(getattr(empty_out, "dtype", empty_out.dtype)),
+            "float32",
+        )
+        nested_empty = ops.map(
+            lambda x: {"a": x * 2, "b": x + 1},
+            np.zeros((0, 3), dtype="float32"),
+        )
+        self.assertEqual(tuple(nested_empty["a"].shape), (0, 3))
+        self.assertEqual(tuple(nested_empty["b"].shape), (0, 3))
+
+        # Domain-restricted ops must not be evaluated on dummy zeros.
+        # Add eye so shape tracing stays invertible under compute_output_spec.
+        inv_out = ops.map(
+            lambda x: ops.linalg.inv(x + ops.eye(2)),
+            np.zeros((0, 2, 2), dtype="float32"),
+        )
+        self.assertEqual(tuple(inv_out.shape), (0, 2, 2))
+
+        # Symbolic size-0 inputs.
+        symbolic = ops.map(
+            lambda x: x * 2, KerasTensor((0, 3), dtype="float32")
+        )
+        self.assertEqual(tuple(symbolic.shape), (0, 3))
+
         # Test nested output
         def f2(x):
             return {"a": x**2, "b": x * 10}
@@ -1429,6 +1458,48 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         # Case: numpy input
         output = ops.vectorized_map(fn, [np.ones((2, 3)), np.ones((2, 3))])
         self.assertAllClose(output, 2 * np.ones((2, 3)))
+
+        # Empty leading axis should return an empty stacked output.
+        empty_out = ops.vectorized_map(
+            lambda x: x + 1, np.zeros((0, 3), dtype="float32")
+        )
+        self.assertEqual(tuple(empty_out.shape), (0, 3))
+        self.assertEqual(
+            standardize_dtype(getattr(empty_out, "dtype", empty_out.dtype)),
+            "float32",
+        )
+        empty_multi = ops.vectorized_map(
+            fn,
+            [
+                np.zeros((0, 3), dtype="float32"),
+                np.zeros((0, 3), dtype="float32"),
+            ],
+        )
+        self.assertEqual(tuple(empty_multi.shape), (0, 3))
+
+        # Mismatched batch sizes should raise.
+        with self.assertRaises(ValueError):
+            ops.vectorized_map(
+                fn,
+                [
+                    np.zeros((0, 3), dtype="float32"),
+                    np.ones((2, 3), dtype="float32"),
+                ],
+            )
+
+        # Domain-restricted ops must not be evaluated on dummy zeros.
+        # Add eye so shape tracing stays invertible under compute_output_spec.
+        inv_out = ops.vectorized_map(
+            lambda x: ops.linalg.inv(x + ops.eye(2)),
+            np.zeros((0, 2, 2), dtype="float32"),
+        )
+        self.assertEqual(tuple(inv_out.shape), (0, 2, 2))
+
+        # Symbolic size-0 inputs.
+        symbolic = ops.vectorized_map(
+            lambda x: x + 1, KerasTensor((0, 3), dtype="float32")
+        )
+        self.assertEqual(tuple(symbolic.shape), (0, 3))
 
     @parameterized.named_parameters(
         [

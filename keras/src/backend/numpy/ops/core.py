@@ -81,14 +81,40 @@ def cond(pred, true_fn, false_fn):
     return false_fn()
 
 
+def _empty_vectorized_map_output(function, elements):
+    elem_spec = tree.map_structure(
+        lambda t: KerasTensor(t.shape[1:], standardize_dtype(t.dtype)),
+        elements,
+    )
+    out_spec = compute_output_spec(function, elem_spec)
+    return tree.map_structure(
+        lambda y: np.zeros((0, *y.shape), dtype=y.dtype),
+        out_spec,
+    )
+
+
 def vectorized_map(function, elements):
     if not isinstance(elements, (list, tuple)):
+        elements = convert_to_tensor(elements)
+        if elements.ndim < 1:
+            raise ValueError(
+                "All inputs to `vectorized_map` must have rank >= 1. "
+                f"Received an input with shape {elements.shape}."
+            )
+        if isinstance(elements.shape[0], int) and elements.shape[0] == 0:
+            return _empty_vectorized_map_output(function, elements)
         return np.stack([function(x) for x in elements])
     else:
         if not elements:
             raise ValueError("`elements` cannot be empty.")
+        elements = [convert_to_tensor(x) for x in elements]
         batch_size = elements[0].shape[0]
         for i, x in enumerate(elements):
+            if x.ndim < 1:
+                raise ValueError(
+                    "All inputs to `vectorized_map` must have rank >= 1. "
+                    f"Received an input with shape {x.shape}."
+                )
             if x.shape[0] != batch_size:
                 raise ValueError(
                     "All elements passed to `vectorized_map` must have the "
@@ -96,6 +122,8 @@ def vectorized_map(function, elements):
                     f"batch size {batch_size}, but element at index {i} has "
                     f"batch size {x.shape[0]}."
                 )
+        if isinstance(batch_size, int) and batch_size == 0:
+            return _empty_vectorized_map_output(function, elements)
         output_store = [function(list(x)) for x in zip(*elements)]
         return np.stack(output_store)
 

@@ -265,23 +265,56 @@ def cond(pred, true_fn, false_fn):
 
 
 def vectorized_map(function, elements):
+    elements = tree.map_structure(convert_to_tensor, elements)
+    flat = tree.flatten(elements)
+    if not flat:
+        raise ValueError("`elements` cannot be empty.")
+    for x in flat:
+        if len(x.shape) < 1:
+            raise ValueError(
+                "All inputs to `vectorized_map` must have rank >= 1. "
+                f"Received an input with shape {x.shape}."
+            )
+    batch_size = flat[0].shape[0]
+    for i, x in enumerate(flat):
+        if x.shape[0] != batch_size:
+            raise ValueError(
+                "All elements passed to `vectorized_map` must have the "
+                f"same batch size (dimension 0). Element at index 0 has "
+                f"batch size {batch_size}, but element at index {i} has "
+                f"batch size {x.shape[0]}."
+            )
+    # tf.vectorized_map indexes batch 0; empty batches fail with
+    # "indices[0] = 0 is not in [0, 0)". Trace output specs instead.
+    if isinstance(batch_size, int) and batch_size == 0:
+        elem_spec = tree.map_structure(
+            lambda t: KerasTensor(t.shape[1:], t.dtype), elements
+        )
+        out_spec = compute_output_spec(function, elem_spec)
+        return tree.map_structure(
+            lambda y: tf.zeros((0,) + tuple(y.shape), dtype=y.dtype),
+            out_spec,
+        )
     return tf.vectorized_map(function, elements)
 
 
 def map(f, xs):
     xs = tree.map_structure(convert_to_tensor, xs)
-
-    def get_fn_output_signature(x):
-        out = f(x)
-        return tree.map_structure(tf.TensorSpec.from_tensor, out)
-
-    if tree.is_nested(xs):
-        input = tree.pack_sequence_as(xs, [x[0] for x in tree.flatten(xs)])
-        fn_output_signature = get_fn_output_signature(input)
-        return tf.map_fn(f, xs, fn_output_signature=fn_output_signature)
-    else:
-        fn_output_signature = get_fn_output_signature(xs[0])
-        return tf.map_fn(f, xs, fn_output_signature=fn_output_signature)
+    # Avoid indexing xs[0] (invalid for size-0 batches). Trace the element
+    # signature with compute_output_spec and let tf.map_fn handle empty xs.
+    xs_spec = tree.map_structure(
+        lambda x: KerasTensor(x.shape[1:], x.dtype), xs
+    )
+    out_spec = compute_output_spec(f, xs_spec)
+    fn_output_signature = tree.map_structure(
+        lambda y: (
+            tf.TensorSpec(shape=y.shape, dtype=y.dtype)
+            if isinstance(y, KerasTensor)
+            else tf.TensorSpec.from_tensor(convert_to_tensor(y))
+        ),
+        out_spec,
+    )
+    return tf.map_fn(f, xs, fn_output_signature=fn_output_signature)
 
 
 def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
