@@ -1,5 +1,6 @@
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common.functional_scope import in_functional_scope
 from keras.src.utils.naming import auto_name
 
 
@@ -401,6 +402,9 @@ class KerasTensor:
 
 
 def any_symbolic_tensors(args=None, kwargs=None):
+    if in_functional_scope():
+        return True
+
     for items in (args or (), kwargs.values() if kwargs else ()):
         for x in items:
             if isinstance(x, KerasTensor):
