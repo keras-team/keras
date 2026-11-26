@@ -5248,6 +5248,16 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
                 np.quantile(x, q, axis=1, method=method),
             )
 
+    def test_quantile_invalid_method_raises(self):
+        # Shared across backends: invalid method must raise, not
+        # UnboundLocalError (TF) or silently succeed.
+        x = knp.array([1.0, 2.0, 3.0])
+        with self.assertRaisesRegex(
+            (ValueError, RuntimeError),
+            r"(?i)(not a valid method|method.*one of|interpolation)",
+        ):
+            knp.quantile(x, 0.5, method="__invalid_choice__")
+
     @pytest.mark.skipif(
         config.backend() != "tensorflow",
         reason="Only test tensorflow backend",

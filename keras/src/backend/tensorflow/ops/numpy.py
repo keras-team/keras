@@ -2757,6 +2757,11 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
             tf.gather(sorted_y, larger_y_idx, axis=-1) * (1 - fraction)
             + tf.gather(sorted_y, smaller_y_idx, axis=-1) * fraction
         )
+    else:
+        raise ValueError(
+            "`method` must be one of 'linear', 'lower', 'higher', "
+            f"'midpoint', or 'nearest'. Received: method={method}"
+        )
 
     # Propagate NaNs
     if x.dtype in (tf.bfloat16, tf.float16, tf.float32, tf.float64):
