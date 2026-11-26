@@ -533,7 +533,7 @@ class ElementwiseBinaryOperation(Operation):
     call_fn = None
     output_dtype = None
     promote_to_float = False
-    output_sparse_fn = staticmethod(lambda x1_sparse, x2_sparse: False)
+    output_sparse_fn = lambda x1_sparse, x2_sparse: False
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

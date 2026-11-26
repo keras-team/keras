@@ -1571,6 +1571,9 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 class BitwiseAnd(ElementwiseBinaryOperation):
     call_fn = backend.ops.numpy.bitwise_and
 
+    def call(self, x, y):
+        return self.call_fn(x, y)
+
 
 @keras_export(["keras.ops.bitwise_and", "keras.ops.numpy.bitwise_and"])
 def bitwise_and(x, y):
@@ -1641,6 +1644,9 @@ def bitwise_not(x):
 class BitwiseOr(ElementwiseBinaryOperation):
     call_fn = backend.ops.numpy.bitwise_or
 
+    def call(self, x, y):
+        return self.call_fn(x, y)
+
 
 @keras_export(["keras.ops.bitwise_or", "keras.ops.numpy.bitwise_or"])
 def bitwise_or(x, y):
@@ -1665,6 +1671,9 @@ def bitwise_or(x, y):
 class BitwiseXor(ElementwiseBinaryOperation):
     call_fn = backend.ops.numpy.bitwise_xor
 
+    def call(self, x, y):
+        return self.call_fn(x, y)
+
 
 @keras_export(["keras.ops.bitwise_xor", "keras.ops.numpy.bitwise_xor"])
 def bitwise_xor(x, y):
@@ -1688,6 +1697,9 @@ def bitwise_xor(x, y):
 
 class BitwiseLeftShift(ElementwiseBinaryOperation):
     call_fn = backend.ops.numpy.bitwise_left_shift
+
+    def call(self, x, y):
+        return self.call_fn(x, y)
 
 
 @keras_export(
@@ -1715,6 +1727,9 @@ def bitwise_left_shift(x, y):
 class LeftShift(ElementwiseBinaryOperation):
     call_fn = backend.ops.numpy.left_shift
 
+    def call(self, x, y):
+        return self.call_fn(x, y)
+
 
 @keras_export(["keras.ops.left_shift", "keras.ops.numpy.left_shift"])
 def left_shift(x, y):
@@ -1738,6 +1753,9 @@ def left_shift(x, y):
 
 class BitwiseRightShift(ElementwiseBinaryOperation):
     call_fn = backend.ops.numpy.bitwise_right_shift
+
+    def call(self, x, y):
+        return self.call_fn(x, y)
 
 
 @keras_export(
@@ -1764,6 +1782,9 @@ def bitwise_right_shift(x, y):
 
 class RightShift(ElementwiseBinaryOperation):
     call_fn = backend.ops.numpy.right_shift
+
+    def call(self, x, y):
+        return self.call_fn(x, y)
 
 
 @keras_export(["keras.ops.right_shift", "keras.ops.numpy.right_shift"])
@@ -5172,6 +5193,27 @@ def max(x, axis=None, keepdims=False, initial=None):
     )
 
 
+class Maximum(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.maximum
+    output_sparse_fn = lambda x1_sparse, x2_sparse: x1_sparse and x2_sparse
+
+
+@keras_export(["keras.ops.maximum", "keras.ops.numpy.maximum"])
+def maximum(x1, x2):
+    """Element-wise maximum of `x1` and `x2`.
+
+    Args:
+        x1: First tensor.
+        x2: Second tensor.
+
+    Returns:
+        Output tensor, element-wise maximum of `x1` and `x2`.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Maximum().symbolic_call(x1, x2)
+    return backend.ops.numpy.maximum(x1, x2)
+
+
 def _fmax(x1, x2):
     if not config._use_backend_agnostic_ops() and hasattr(
         backend.ops.numpy, "fmax"
@@ -5193,27 +5235,6 @@ def _fmax(x1, x2):
 
     res = backend.ops.numpy.where(backend.ops.numpy.isnan(x2), x1, res)
     return backend.ops.numpy.where(backend.ops.numpy.isnan(x1), x2, res)
-
-
-class Maximum(ElementwiseBinaryOperation):
-    call_fn = backend.ops.numpy.maximum
-    output_sparse_fn = lambda x1_sparse, x2_sparse: x1_sparse and x2_sparse
-
-
-@keras_export(["keras.ops.maximum", "keras.ops.numpy.maximum"])
-def maximum(x1, x2):
-    """Element-wise maximum of `x1` and `x2`.
-
-    Args:
-        x1: First tensor.
-        x2: Second tensor.
-
-    Returns:
-        Output tensor, element-wise maximum of `x1` and `x2`.
-    """
-    if any_symbolic_tensors((x1, x2)):
-        return Maximum().symbolic_call(x1, x2)
-    return backend.ops.numpy.maximum(x1, x2)
 
 
 class Fmax(ElementwiseBinaryOperation):
@@ -5419,6 +5440,27 @@ def min(x, axis=None, keepdims=False, initial=None):
     )
 
 
+class Minimum(ElementwiseBinaryOperation):
+    call_fn = backend.ops.numpy.minimum
+    output_sparse_fn = lambda x1_sparse, x2_sparse: x1_sparse and x2_sparse
+
+
+@keras_export(["keras.ops.minimum", "keras.ops.numpy.minimum"])
+def minimum(x1, x2):
+    """Element-wise minimum of `x1` and `x2`.
+
+    Args:
+        x1: First tensor.
+        x2: Second tensor.
+
+    Returns:
+        Output tensor, element-wise minimum of `x1` and `x2`.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Minimum().symbolic_call(x1, x2)
+    return backend.ops.numpy.minimum(x1, x2)
+
+
 def _fmin(x1, x2):
     if not config._use_backend_agnostic_ops() and hasattr(
         backend.ops.numpy, "fmin"
@@ -5440,27 +5482,6 @@ def _fmin(x1, x2):
 
     res = backend.ops.numpy.where(backend.ops.numpy.isnan(x2), x1, res)
     return backend.ops.numpy.where(backend.ops.numpy.isnan(x1), x2, res)
-
-
-class Minimum(ElementwiseBinaryOperation):
-    call_fn = backend.ops.numpy.minimum
-    output_sparse_fn = lambda x1_sparse, x2_sparse: x1_sparse and x2_sparse
-
-
-@keras_export(["keras.ops.minimum", "keras.ops.numpy.minimum"])
-def minimum(x1, x2):
-    """Element-wise minimum of `x1` and `x2`.
-
-    Args:
-        x1: First tensor.
-        x2: Second tensor.
-
-    Returns:
-        Output tensor, element-wise minimum of `x1` and `x2`.
-    """
-    if any_symbolic_tensors((x1, x2)):
-        return Minimum().symbolic_call(x1, x2)
-    return backend.ops.numpy.minimum(x1, x2)
 
 
 class Fmin(ElementwiseBinaryOperation):
