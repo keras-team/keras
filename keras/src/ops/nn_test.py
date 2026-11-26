@@ -3212,6 +3212,50 @@ class NNOpsDtypeTest(testing.TestCase):
     elif config.backend() == "tensorflow":
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint32",)]
 
+    @parameterized.named_parameters(
+        named_product(dtype=["float16", "bfloat16", "float32", "int32", "bool"])
+    )
+    def test_categorical_crossentropy_dtype(self, dtype):
+        output = knp.ones((2, 3), dtype=dtype)
+        target = knp.ones((2, 3), dtype=dtype)
+        expected_dtype = (
+            dtype if dtype in self.FLOAT_DTYPES else config.floatx()
+        )
+
+        for from_logits in (False, True):
+            result = knn.categorical_crossentropy(
+                target, output, from_logits=from_logits
+            )
+            symbolic_result = knn.CategoricalCrossentropy(
+                from_logits=from_logits
+            ).symbolic_call(target, output)
+            self.assertEqual(standardize_dtype(result.dtype), expected_dtype)
+            self.assertEqual(
+                standardize_dtype(symbolic_result.dtype), expected_dtype
+            )
+
+    @parameterized.named_parameters(
+        named_product(dtype=["float16", "bfloat16", "float32", "int32", "bool"])
+    )
+    def test_sparse_categorical_crossentropy_dtype(self, dtype):
+        output = knp.ones((2, 3), dtype=dtype)
+        target = knp.zeros((2,), dtype="int32")
+        expected_dtype = (
+            dtype if dtype in self.FLOAT_DTYPES else config.floatx()
+        )
+
+        for from_logits in (False, True):
+            result = knn.sparse_categorical_crossentropy(
+                target, output, from_logits=from_logits
+            )
+            symbolic_result = knn.SparseCategoricalCrossentropy(
+                from_logits=from_logits
+            ).symbolic_call(target, output)
+            self.assertEqual(standardize_dtype(result.dtype), expected_dtype)
+            self.assertEqual(
+                standardize_dtype(symbolic_result.dtype), expected_dtype
+            )
+
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_elu(self, dtype):
         import jax.nn as jnn
