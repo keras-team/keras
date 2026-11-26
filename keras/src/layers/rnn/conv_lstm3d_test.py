@@ -1,14 +1,14 @@
 import numpy as np
 
-from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 
 
 class ConvLSTM3DTest(testing.TestCase):
     def test_basics(self):
-        channels_last = backend.config.image_data_format() == "channels_last"
+        channels_last = config.image_data_format() == "channels_last"
         self.run_layer_test(
             layers.ConvLSTM3D,
             init_kwargs={"filters": 5, "kernel_size": 3, "padding": "same"},
@@ -88,7 +88,7 @@ class ConvLSTM3DTest(testing.TestCase):
                 ],
             ]
         )
-        if backend.config.image_data_format() == "channels_first":
+        if config.image_data_format() == "channels_first":
             sequence = sequence.transpose((0, 1, 5, 2, 3, 4))
             expected_output = expected_output.transpose((0, 4, 1, 2, 3))
         layer = layers.ConvLSTM3D(

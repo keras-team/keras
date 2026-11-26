@@ -17,12 +17,16 @@ from keras.src import quantizers
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
-from keras.src.backend.common import keras_tensor
+from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
 from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
+from keras.src.quantizers.quantization_test_utils import (
+    calibrate_on_random_rows,
+)
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.testing import test_utils
 
@@ -120,14 +124,14 @@ class DenseTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        ("zero", 0),
-        ("negative", -3),
-        ("float", 2.5),
-        ("none", None),
-        ("string", "64"),
+        ("zero", 0, ValueError),
+        ("negative", -3, ValueError),
+        ("float", 2.5, TypeError),
+        ("none", None, TypeError),
+        ("string", "64", TypeError),
     )
-    def test_dense_invalid_units_raises(self, units):
-        with self.assertRaisesRegex(ValueError, "positive integer"):
+    def test_dense_invalid_units_raises(self, units, error):
+        with self.assertRaisesRegex(error, "Expected `units` to be an integer"):
             layers.Dense(units)
 
     def test_dense_correctness(self):
@@ -162,8 +166,8 @@ class DenseTest(testing.TestCase):
     def test_dense_errors(self):
         with self.assertRaisesRegex(ValueError, "incompatible with the layer"):
             layer = layers.Dense(units=2, activation="relu")
-            layer(keras_tensor.KerasTensor((1, 2)))
-            layer(keras_tensor.KerasTensor((1, 3)))
+            layer(KerasTensor((1, 2)))
+            layer(KerasTensor((1, 3)))
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
@@ -192,16 +196,16 @@ class DenseTest(testing.TestCase):
         inputs = np.random.random((10, 10)).astype("float32")
         inputs = np.multiply(inputs, inputs >= 0.8)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             inputs = tf.sparse.from_dense(inputs)
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             inputs = jax_sparse.BCOO.fromdense(inputs)
         else:
-            self.fail(f"Sparse is unsupported with backend {backend.backend()}")
+            self.fail(f"Sparse is unsupported with backend {config.backend()}")
 
         layer = layers.Dense(units=10)
         outputs = layer(inputs)
@@ -219,7 +223,7 @@ class DenseTest(testing.TestCase):
         )
 
         # Verify the gradient is sparse
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             with tf.GradientTape() as g:
@@ -289,7 +293,7 @@ class DenseTest(testing.TestCase):
         layer.enable_lora(4)
         self.assertLen(layer.trainable_weights, 3)
         self.assertLen(layer.non_trainable_weights, 1)
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             self.assertLen(layer.torch_params, 4)
         self.assertDType(layer.lora_kernel_a, "float32")
         self.assertDType(layer.lora_kernel_b, "float32")
@@ -707,14 +711,14 @@ class DenseTest(testing.TestCase):
     ):
         # Note that saving and loading with lora_enabled and quantized are
         # lossy, so we use a weak correctness test for model outputs (atol=0.5).
-        config = dict(units=16)
-        layer = layers.Dense(**config)
+        layer_config = dict(units=16)
+        layer = layers.Dense(**layer_config)
         layer.build((None, 8))
         layer.enable_lora(4)
         layer.quantize(mode)
         self.assertLen(layer.trainable_weights, num_trainable_weights)
         self.assertLen(layer.non_trainable_weights, num_non_trainable_weights)
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             self.assertLen(layer.torch_params, num_torch_params)
 
         # Try calling fit()
@@ -751,7 +755,7 @@ class DenseTest(testing.TestCase):
             self.get_temp_dir(), "quantized_lora_model.weights.h5"
         )
         model.save_weights(temp_filepath)
-        new_model = models.Sequential([layers.Dense(**config)])
+        new_model = models.Sequential([layers.Dense(**layer_config)])
         new_model.build((None, 8))
         new_model.quantize(mode)
         new_model.load_weights(temp_filepath)
@@ -764,7 +768,7 @@ class DenseTest(testing.TestCase):
         self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
 
         # Test export and TFSMLayer reloading when using tensorflow backend
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -861,8 +865,8 @@ class DenseTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_float8_fitting(self):
-        config = dict(units=16)
-        layer = layers.Dense(**config)
+        layer_config = dict(units=16)
+        layer = layers.Dense(**layer_config)
         layer.build((None, 8))
         layer.quantize("float8")
         self.assertLen(layer.trainable_weights, 8)
@@ -888,14 +892,14 @@ class DenseTest(testing.TestCase):
             self.get_temp_dir(), "quantized_float8_model.weights.h5"
         )
         model.save_weights(temp_filepath)
-        new_model = models.Sequential([layers.Dense(**config)])
+        new_model = models.Sequential([layers.Dense(**layer_config)])
         new_model.build((None, 8))
         new_model.quantize("float8")
         new_model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
         # Test export and TFSMLayer reloading when using tensorflow backend
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -1000,13 +1004,14 @@ class DenseTest(testing.TestCase):
         correctly."""
         layer = layers.Dense(units=16)
         layer.build((None, 8))
-        layer.quantize(
-            "gptq",
-            config=GPTQConfig(
+        calibrate_on_random_rows(
+            layer,
+            GPTQConfig(
                 dataset=None, tokenizer=None, weight_bits=4, group_size=8
             ),
         )
         config = layer.get_config()
+        self.assertIsNone(config["quantization_config"])
         new_layer = layers.Dense.from_config(config)
         new_layer.build((None, 8))
         self.assertEqual(new_layer.quantization_mode, "gptq")
@@ -1016,42 +1021,17 @@ class DenseTest(testing.TestCase):
         correctly."""
         layer = layers.Dense(units=16)
         layer.build((None, 8))
-        layer.quantize(
-            "awq",
-            config=AWQConfig(
+        calibrate_on_random_rows(
+            layer,
+            AWQConfig(
                 dataset=None, tokenizer=None, group_size=8, num_grid_points=10
             ),
         )
         config = layer.get_config()
+        self.assertIsNone(config["quantization_config"])
         new_layer = layers.Dense.from_config(config)
         new_layer.build((None, 8))
         self.assertEqual(new_layer.quantization_mode, "awq")
-
-    def test_gptq_uncalibrated_save_raises(self):
-        """Saving a GPTQ layer that was never calibrated must raise."""
-        layer = layers.Dense(units=16)
-        layer.build((None, 8))
-        layer.quantize(
-            "gptq",
-            config=GPTQConfig(
-                dataset=None, tokenizer=None, weight_bits=4, group_size=8
-            ),
-        )
-        with self.assertRaisesRegex(ValueError, "never been calibrated"):
-            layer.save_own_variables({})
-
-    def test_awq_uncalibrated_save_raises(self):
-        """Saving an AWQ layer that was never calibrated must raise."""
-        layer = layers.Dense(units=16)
-        layer.build((None, 8))
-        layer.quantize(
-            "awq",
-            config=AWQConfig(
-                dataset=None, tokenizer=None, group_size=8, num_grid_points=10
-            ),
-        )
-        with self.assertRaisesRegex(ValueError, "never been calibrated"):
-            layer.save_own_variables({})
 
     def test_int4_kernel_returns_unpacked_form(self):
         """Test that the `kernel` property returns the unpacked int4 kernel."""
@@ -1190,7 +1170,6 @@ class DenseTest(testing.TestCase):
         layer = layers.Dense(units=16, dtype="gptq/4/8_from_float32")
         layer.build((None, 8))
         layer.load_own_variables(gptq_store)
-        self.assertFalse(layer.calibration_pending)
         self.assertAllClose(layer.bias, gptq_store["0"])
         self.assertAllClose(layer.quantized_kernel, gptq_store["1"])
         self.assertAllClose(layer.kernel_scale, gptq_store["2"])
@@ -1203,7 +1182,6 @@ class DenseTest(testing.TestCase):
         layer = layers.Dense(units=16, dtype="awq/4/8_from_float32")
         layer.build((None, 8))
         layer.load_own_variables(awq_store)
-        self.assertFalse(layer.calibration_pending)
         self.assertAllClose(layer.bias, awq_store["0"])
         self.assertAllClose(layer.quantized_kernel, awq_store["1"])
         self.assertAllClose(layer.kernel_scale, awq_store["2"])
@@ -1290,7 +1268,6 @@ class DenseTest(testing.TestCase):
 
         target = self._build_dense_for_mode(mode)
         target.load_own_variables(test_utils.positional_store(source))
-        self.assertFalse(target.calibration_pending)
         test_utils.assert_serialized_variables_equal(self, source, target)
         # A layer built from its policy runs from its variables.
         x = np.random.rand(2, target.kernel_shape[0]).astype("float32")
@@ -1331,13 +1308,12 @@ class DenseTest(testing.TestCase):
         kernel."""
         layer = layers.Dense(units=2)
         layer.build((None, 2))
-        layer.quantize(
-            "gptq",
-            config=GPTQConfig(
+        calibrate_on_random_rows(
+            layer,
+            GPTQConfig(
                 dataset=None, tokenizer=None, weight_bits=4, group_size=8
             ),
         )
-        layer.calibration_pending = False  # Bypass calibration check
         packed_kernel = layer.quantized_kernel
         self.assertAllClose(
             layer.kernel,
@@ -1351,9 +1327,9 @@ class DenseTest(testing.TestCase):
 
         original_kernel_params = ops.prod(layer._kernel.shape)
 
-        layer.quantize(
-            "gptq",
-            config=GPTQConfig(
+        calibrate_on_random_rows(
+            layer,
+            GPTQConfig(
                 dataset=None, tokenizer=None, weight_bits=4, group_size=8
             ),
         )
@@ -1366,13 +1342,12 @@ class DenseTest(testing.TestCase):
         kernel."""
         layer = layers.Dense(units=2)
         layer.build((None, 2))
-        layer.quantize(
-            "awq",
-            config=AWQConfig(
+        calibrate_on_random_rows(
+            layer,
+            AWQConfig(
                 dataset=None, tokenizer=None, group_size=8, num_grid_points=10
             ),
         )
-        layer.calibration_pending = False  # Bypass calibration check
         packed_kernel = layer.quantized_kernel
         self.assertAllClose(
             layer.kernel,
@@ -1386,9 +1361,9 @@ class DenseTest(testing.TestCase):
 
         original_kernel_params = ops.prod(layer._kernel.shape)
 
-        layer.quantize(
-            "awq",
-            config=AWQConfig(
+        calibrate_on_random_rows(
+            layer,
+            AWQConfig(
                 dataset=None, tokenizer=None, group_size=8, num_grid_points=10
             ),
         )
@@ -2122,3 +2097,8 @@ class DenseTest(testing.TestCase):
         # A forward pass runs without error.
         x = np.random.random((2, input_dim)).astype("float32")
         self.assertEqual(tuple(layer(x).shape), (2, output_dim))
+
+    def test_numpy_integer_units(self):
+        layer = layers.Dense(np.int64(3))
+        self.assertIs(type(layer.units), int)
+        self.assertEqual(layer.units, 3)

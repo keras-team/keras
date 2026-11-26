@@ -1,6 +1,7 @@
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.UnitNormalization")
@@ -27,21 +28,20 @@ class UnitNormalization(Layer):
     def __init__(self, axis=-1, **kwargs):
         super().__init__(**kwargs)
         if isinstance(axis, (list, tuple)):
-            self.axis = list(axis)
-        elif isinstance(axis, int):
-            self.axis = axis
-        else:
-            raise TypeError(
-                "Invalid value for `axis` argument: "
-                "expected an int or a list/tuple of ints. "
-                f"Received: axis={axis}"
+            self.axis = list(
+                argument_validation.validate_int_sequence("axis", axis)
             )
+        else:
+            self.axis = argument_validation.validate_int("axis", axis)
         self.supports_masking = True
 
         self._build_at_init()
 
     def call(self, inputs):
-        return ops.normalize(inputs, axis=self.axis, order=2, epsilon=1e-12)
+        # torch compilation cannot trace the `TrackedList` that `self.axis`
+        # becomes, so pass a plain tuple to avoid a graph break
+        axis = tuple(self.axis) if isinstance(self.axis, list) else self.axis
+        return ops.normalize(inputs, axis=axis, order=2, epsilon=1e-12)
 
     def compute_output_shape(self, input_shape):
         # Ensure axis is always treated as a list

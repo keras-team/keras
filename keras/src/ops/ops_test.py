@@ -49,7 +49,11 @@ def op_functions_and_classes(ops_module):
             op_function_name = to_snake_case(op_class_name)
             # With some exceptions.
             op_function_name = {
+                "all_close": "allclose",
                 "batch_norm": "batch_normalization",
+                "c_dist": "cdist",
+                "is_in": "isin",
+                "layer_norm": "layer_normalization",
                 "rms_norm": "rms_normalization",
                 "search_sorted": "searchsorted",
             }.get(op_function_name, op_function_name)

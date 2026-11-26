@@ -2,6 +2,8 @@ import warnings
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common import standardize_shape
 from keras.src.layers.layer import Layer
@@ -34,7 +36,7 @@ class InputLayer(Layer):
             batch_shape = kwargs.pop("batch_input_shape")
 
         if input_tensor is not None:
-            if not isinstance(input_tensor, backend.KerasTensor):
+            if not isinstance(input_tensor, KerasTensor):
                 raise ValueError(
                     "Argument `input_tensor` must be a KerasTensor. "
                     f"Received invalid type: input_tensor={input_tensor} "
@@ -99,18 +101,18 @@ class InputLayer(Layer):
         self.sparse = bool(sparse)
         if self.sparse and not backend.SUPPORTS_SPARSE_TENSORS:
             raise ValueError(
-                f"`sparse=True` is not supported with the {backend.backend()} "
+                f"`sparse=True` is not supported with the {config.backend()} "
                 "backend"
             )
         self.ragged = bool(ragged)
         if self.ragged and not backend.SUPPORTS_RAGGED_TENSORS:
             raise ValueError(
-                f"`ragged=True` is not supported with the {backend.backend()} "
+                f"`ragged=True` is not supported with the {config.backend()} "
                 "backend"
             )
 
         if input_tensor is None:
-            input_tensor = backend.KerasTensor(
+            input_tensor = KerasTensor(
                 shape=batch_shape,
                 dtype=dtype,
                 sparse=sparse,

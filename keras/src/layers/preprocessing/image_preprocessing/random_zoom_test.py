@@ -6,6 +6,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils import backend_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
@@ -33,7 +34,7 @@ class RandomZoomTest(testing.TestCase):
         )
 
     def test_random_zoom_out_correctness(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (1, 5, 5, 1)
         else:
             input_shape = (1, 1, 5, 5)
@@ -68,7 +69,7 @@ class RandomZoomTest(testing.TestCase):
         )
 
     def test_random_zoom_in_correctness(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (1, 5, 5, 1)
         else:
             input_shape = (1, 1, 5, 5)
@@ -101,7 +102,7 @@ class RandomZoomTest(testing.TestCase):
         )
 
     def test_tf_data_compatibility(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (1, 5, 5, 1)
         else:
             input_shape = (1, 1, 5, 5)
@@ -170,7 +171,7 @@ class RandomZoomTest(testing.TestCase):
         ),
     )
     def test_random_flip_bounding_boxes(self, zoom, expected_boxes):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             image_shape = (10, 8, 3)
         else:
@@ -224,8 +225,8 @@ class RandomZoomTest(testing.TestCase):
         ),
     )
     def test_random_flip_tf_data_bounding_boxes(self, zoom, expected_boxes):
-        data_format = backend.config.image_data_format()
-        if backend.config.image_data_format() == "channels_last":
+        data_format = config.image_data_format()
+        if data_format == "channels_last":
             image_shape = (1, 10, 8, 3)
         else:
             image_shape = (1, 3, 10, 8)

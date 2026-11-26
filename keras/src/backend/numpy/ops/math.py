@@ -100,7 +100,9 @@ def in_top_k(targets, predictions, k):
 
 def logsumexp(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if standardize_dtype(x.dtype) == "bfloat16":
+        x = x.astype("float32")
     return scipy.special.logsumexp(x, axis=axis, keepdims=keepdims).astype(
         dtype
     )
@@ -109,7 +111,7 @@ def logsumexp(x, axis=None, keepdims=False):
 def cdist(x, y):
     x = np.asarray(x)
     y = np.asarray(y)
-    dtype = dtypes.result_type(x.dtype, y.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(dtypes.result_type(x.dtype, y.dtype))
     x = x.astype(dtype)
     y = y.astype(dtype)
     if x.ndim < 2 or y.ndim < 2:
@@ -318,23 +320,26 @@ def istft(
 
 
 def rsqrt(x):
-    dtype = dtypes.result_type(x.dtype)
+    x = convert_to_tensor(x)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return (1.0 / np.sqrt(x)).astype(dtype)
 
 
 def erf(x):
-    dtype = dtypes.result_type(x.dtype)
+    x = convert_to_tensor(x)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return scipy.special.erf(x).astype(dtype)
 
 
 def erfc(x):
-    dtype = dtypes.result_type(x.dtype, float)
+    x = convert_to_tensor(x)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return scipy.special.erfc(x).astype(dtype)
 
 
 def erfinv(x):
     x = convert_to_tensor(x)
-    dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return scipy.special.erfinv(x).astype(dtype)
 
 
@@ -349,11 +354,13 @@ def logdet(x):
 def gammainc(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     return scipy.special.gammainc(x1, x2).astype(dtype)
 
 
 def lgamma(x):
     x = convert_to_tensor(x)
-    dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return scipy.special.gammaln(x).astype(dtype)

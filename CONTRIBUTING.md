@@ -279,8 +279,8 @@ Both code paths must be tested. Parameterize the test with the
 ```python
 @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
 def test_my_op(self, backend_agnostic_ops):
-    backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-    self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+    config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+    self.addCleanup(config._set_use_backend_agnostic_ops, False)
     x = np.array([1.0, 2.0, 3.0])
     self.assertAllClose(knp.my_op(x), np.my_op(x))
     self.assertAllClose(knp.MyOp()(x), np.my_op(x))
@@ -299,6 +299,20 @@ You can also test the fallback across an entire test run by setting the
 
 ```shell
 KERAS_USE_BACKEND_AGNOSTIC_OPS=1 pytest keras/src/ops/numpy_test.py
+```
+
+## Testing with unofficial backends
+
+You can test Keras with an unofficial pluggable backend by setting the
+`KERAS_ALLOW_UNOFFICIAL_BACKEND` environment variable. This feature is opt-in
+and off by default. When the flag is set to `true`, `1`, or `yes`, a backend
+name that is not one of the built-in or official pluggable backends is
+accepted as long as it is a valid Python identifier, and Keras imports it
+from a package named `keras_<name>` (for example, setting
+`KERAS_BACKEND=my_backend` imports `keras_my_backend`).
+
+```shell
+KERAS_ALLOW_UNOFFICIAL_BACKEND=1 KERAS_BACKEND=my_backend pytest keras
 ```
 
 ## GitHub Actions Security Validation

@@ -1,5 +1,4 @@
 import itertools
-from unittest.mock import create_autospec
 
 import numpy as np
 import pytest
@@ -8,10 +7,11 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
+from keras.src.backend import config
+from keras.src.backend.common import AutocastScope
+from keras.src.backend.common import StatelessScope
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common import standardize_shape
-from keras.src.backend.common.variables import AutocastScope
 from keras.src.backend.common.variables import shape_equal
 from keras.src.distribution.distribution_lib import TensorLayout
 from keras.src.testing import test_case
@@ -23,7 +23,7 @@ class VariableInitializationTest(test_case.TestCase):
 
     def test_deferred_initialization(self):
         """Tests deferred initialization of variables."""
-        with backend.StatelessScope():
+        with StatelessScope():
             v = backend.Variable(
                 initializer=initializers.RandomNormal(), shape=(2, 2)
             )
@@ -33,7 +33,7 @@ class VariableInitializationTest(test_case.TestCase):
         self.assertEqual(v._value.shape, (2, 2))
 
         with self.assertRaisesRegex(ValueError, "while in a stateless scope"):
-            with backend.StatelessScope():
+            with StatelessScope():
                 v = backend.Variable(initializer=0)
 
     def test_variable_initialization_with_numpy_array(self):
@@ -155,7 +155,7 @@ class VariablePropertiesTest(test_case.TestCase):
 
     def test_deferred_assignment(self):
         """Tests deferred assignment to variables."""
-        with backend.StatelessScope() as scope:
+        with StatelessScope() as scope:
             v = backend.Variable(
                 initializer=initializers.RandomNormal(), shape=(2, 2)
             )
@@ -176,7 +176,7 @@ class VariablePropertiesTest(test_case.TestCase):
         v.trainable = False
         self.assertFalse(v.trainable)
 
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             v.trainable = True
             self.assertTrue(v._value.requires_grad)
             v.trainable = False
@@ -341,51 +341,6 @@ class VariablePropertiesTest(test_case.TestCase):
         self.assertAllClose(v.value, np.full((2, 2), 3.0))
         self.assertEqual(standardize_dtype(v.value.dtype), "float32")
 
-    @parameterized.named_parameters(
-        named_product(
-            dtype=(
-                dtype for dtype in dtypes.ALLOWED_DTYPES if dtype != "string"
-            )
-        )
-    )
-    def test_standardize_dtype(self, dtype):
-        """Tests standardize_dtype for all ALLOWED_DTYPES except string."""
-        if backend.backend() == "torch" and dtype in (
-            "uint16",
-            "uint32",
-            "uint64",
-            "complex64",
-            "complex128",
-        ):
-            self.skipTest(f"torch backend does not support dtype {dtype}")
-
-        if backend.backend() == "jax":
-            if dtype in ("complex128",):
-                self.skipTest(f"jax backend does not support dtype {dtype}")
-            import jax
-
-            if not jax.config.x64_enabled and "64" in dtype:
-                self.skipTest(
-                    f"jax backend does not support {dtype} without x64 enabled"
-                )
-
-        if not backend.SUPPORTS_COMPLEX_DTYPES and dtype in (
-            "complex64",
-            "complex128",
-        ):
-            self.skipTest(f"backend does not support dtype {dtype}")
-
-        x = backend.ops.convert_to_tensor(np.zeros(()), dtype)
-        actual = standardize_dtype(x.dtype)
-        self.assertEqual(actual, dtype)
-
-    def test_standardize_dtype_with_torch_dtype(self):
-        """Tests dtype standardization with PyTorch dtypes."""
-        import torch
-
-        x = torch.randn(4, 4)
-        standardize_dtype(x.dtype)
-
     def test_name_validation(self):
         """Tests validation of variable names."""
         with self.assertRaisesRegex(
@@ -400,94 +355,11 @@ class VariablePropertiesTest(test_case.TestCase):
                 initializer=initializers.RandomNormal(), name="invalid/name"
             )
 
-    def test_standardize_shape_with_none(self):
-        with self.assertRaisesRegex(
-            ValueError, "Undefined shapes are not supported."
-        ):
-            standardize_shape(None)
-
-    def test_standardize_shape_with_non_iterable(self):
-        with self.assertRaisesRegex(
-            ValueError, "Cannot convert '42' to a shape."
-        ):
-            standardize_shape(42)
-
-    def test_standardize_shape_with_valid_input(self):
-        shape = (3, 4, 5)
-        standardized_shape = standardize_shape(shape)
-        self.assertEqual(standardized_shape, (3, 4, 5))
-
-    def test_standardize_shape_with_valid_input_with_none(self):
-        shape = (3, None, 5)
-        standardized_shape = standardize_shape(shape)
-        self.assertEqual(standardized_shape, (3, None, 5))
-
-    def test_standardize_shape_with_valid_not_tuple_input(self):
-        shape = [3, 4, 5]
-        standardized_shape = standardize_shape(shape)
-        self.assertEqual(standardized_shape, (3, 4, 5))
-
-    def test_standardize_shape_with_numpy(self):
-        shape = [3, np.int32(4), np.int64(5)]
-        standardized_shape = standardize_shape(shape)
-        self.assertEqual(standardized_shape, (3, 4, 5))
-        for d in standardized_shape:
-            self.assertIsInstance(d, int)
-
-    def test_standardize_shape_with_string(self):
-        shape_with_string = (3, 4, "5")
-        with self.assertRaisesRegex(
-            ValueError,
-            "Cannot convert .* to a shape. Found invalid dimension '5'.",
-        ):
-            standardize_shape(shape_with_string)
-
-    def test_standardize_shape_with_float(self):
-        shape_with_float = (3, 4, 5.0)
-        with self.assertRaisesRegex(
-            ValueError,
-            "Cannot convert .* to a shape. Found invalid dimension '5.0'.",
-        ):
-            standardize_shape(shape_with_float)
-
-    def test_standardize_shape_with_object(self):
-        shape_with_object = (3, 4, object())
-        with self.assertRaisesRegex(
-            ValueError,
-            "Cannot convert .* to a shape. Found invalid dimension .*object",
-        ):
-            standardize_shape(shape_with_object)
-
-    def test_standardize_shape_with_negative_dimension(self):
-        with self.assertRaisesRegex(
-            ValueError,
-            "Cannot convert .* to a shape. Negative dimensions",
-        ):
-            standardize_shape((3, 4, -5))
-
-    @parameterized.named_parameters(
-        ("all_dynamic", (None, None, None, 64), (None, None, None, 64)),
-        ("mixed", (None, 224, 224, 3), (None, 224, 224, 3)),
-        ("all_static", (1, 224, 224, 3), (1, 224, 224, 3)),
-    )
-    def test_standardize_shape_preserves_none(self, input_shape, expected):
-        """Test that None dimensions are preserved correctly."""
-        result = standardize_shape(input_shape)
-        self.assertEqual(result, expected)
-
     def test_shape_equal_length_mismatch(self):
         """Test mismatch in lengths of shapes."""
         self.assertFalse(shape_equal((3, 2), (3, 2, 4)))
         self.assertFalse(shape_equal((), (3,)))
         self.assertFalse(shape_equal((3, 2, 4, 5), (3, 2, 4)))
-
-    def test_autocast_scope_with_non_float_dtype(self):
-        """Tests autocast scope with non-float dtype."""
-        with self.assertRaisesRegex(
-            ValueError,
-            "`AutocastScope` can only be used with a floating-point",
-        ):
-            _ = AutocastScope("int32")
 
     def test_variable_path_creation(self):
         """Test path creation for a variable."""
@@ -521,7 +393,7 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
         self.assertAllClose(v.numpy(), np.array([1.0, 2.0, 3.0]))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Tests for MirroredVariable under tf backend",
     )
     def test_variable_numpy_scalar(self):
@@ -578,7 +450,7 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
 
     def test_deferred_initialize_within_stateless_scope(self):
         """Test deferred init within a stateless scope."""
-        with backend.StatelessScope():
+        with StatelessScope():
             v = backend.Variable(
                 initializer=initializers.RandomNormal(), shape=(2, 2)
             )
@@ -622,8 +494,8 @@ class VariableDtypeShapeNdimRepr(test_case.TestCase):
         )
         self.assertEqual(repr(v), expected_repr)
 
-        # Test with `backend.StatelessScope()`
-        with backend.StatelessScope():
+        # Test with `StatelessScope()`
+        with StatelessScope():
             v = backend.Variable(
                 initializer="zeros", shape=(3,), name="test_var"
             )
@@ -659,10 +531,29 @@ class VariableDtypeShapeNdimRepr(test_case.TestCase):
             np.array([1.0, 2.0, 3.0]),
         )
 
-    def test_variable_array(self):
+    @parameterized.named_parameters(
+        ("default", None, None),
+        ("dtype", "int32", None),
+        ("dtype_no_op", "float32", None),
+        ("copy", None, True),
+        ("no_copy", None, False),
+    )
+    def test_variable_array(self, dtype, copy):
         """Test converting a variable to an array."""
-        v = backend.Variable(initializer=np.array([1.0, 2.0, 3.0]))
-        self.assertAllClose(v.__array__(), np.array([1.0, 2.0, 3.0]))
+        v = backend.Variable(initializer=np.array([1, 2, 3], dtype="float32"))
+
+        if copy is not None:
+            np_v = v.__array__(dtype=dtype, copy=copy)
+        else:
+            np_v = v.__array__(dtype=dtype)
+
+        self.assertAllClose(np_v, np.array([1, 2, 3]))
+        if dtype is not None:
+            self.assertEqual(np_v.dtype, dtype)
+        if copy:
+            self.assertIsNot(np_v, v._value)
+            np_v[0] = 0
+            self.assertAllClose(v, np.array([1, 2, 3]))
 
 
 class VariableOpsCorrectnessTest(test_case.TestCase):
@@ -963,12 +854,12 @@ class VariableOpsDTypeTest(test_case.TestCase):
     INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
     COMPLEX_DTYPES = ["complex32", "complex64"]
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         ALL_DTYPES = [
             x for x in ALL_DTYPES if x not in ("uint16", "uint32", "complex64")
         ]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
-    elif backend.backend() == "tensorflow":
+    elif config.backend() == "tensorflow":
         # TODO(hongyu): Re-enable uint32 tests once we determine how to handle
         # dtypes.result_type(uint32, int*) -> int64 promotion.
         # Since TF variables require int64 to be placed on the GPU, we
@@ -1257,73 +1148,3 @@ class VariableOpsDTypeTest(test_case.TestCase):
 
         self.assertDType(x1 ^ x2, expected_dtype)
         self.assertDType(x1.__rxor__(x2), expected_dtype)
-
-
-@pytest.mark.skipif(
-    backend.backend() != "torch",
-    reason="Tests for standardize_shape with Torch backend",
-)
-class TestStandardizeShapeWithTorch(test_case.TestCase):
-    def test_standardize_shape_with_torch_size(self):
-        import torch
-
-        tensor = torch.randn(3, 4, 5)
-        shape = tensor.size()
-        standardized_shape = standardize_shape(shape)
-        self.assertEqual(standardized_shape, (3, 4, 5))
-        self.assertIs(type(standardized_shape), tuple)
-        for d in standardized_shape:
-            self.assertIsInstance(d, int)
-
-    def test_standardize_shape_with_torch_symint(self):
-        """Test that torch.SymInt dimensions are converted to None.
-
-        This validates the fix for GitHub issue #22102 where torch.SymInt
-        objects from torch.export were causing "Constraints violated" errors.
-        """
-        import torch
-
-        # Create a mock SymInt object
-        sym_int = create_autospec(torch.SymInt, instance=True)
-        shape_with_sym_int = (sym_int, 224, 224, 64)
-
-        # SymInt should be converted to None
-        result = standardize_shape(shape_with_sym_int)
-        self.assertEqual(result, (None, 224, 224, 64))
-
-        # Test with multiple SymInts
-        sym_int2 = create_autospec(torch.SymInt, instance=True)
-        shape_with_multiple_sym_ints = (sym_int, sym_int2, 64)
-        result = standardize_shape(shape_with_multiple_sym_ints)
-        self.assertEqual(result, (None, None, 64))
-
-
-@pytest.mark.skipif(
-    backend.backend() != "tensorflow",
-    reason="Tests for standardize_shape with TensorFlow backend",
-)
-class TestStandardizeShapeWithTensorflow(test_case.TestCase):
-    def test_standardize_shape_with_tensor_size(self):
-        import tensorflow as tf
-
-        shape = (3, tf.constant(4, dtype=tf.int64), 5)
-        standardized_shape = standardize_shape(shape)
-        self.assertEqual(standardized_shape, (3, 4, 5))
-        self.assertIs(type(standardized_shape), tuple)
-        for d in standardized_shape:
-            self.assertIsInstance(d, int)
-
-    def test_standardize_shape_with_unknown_rank(self):
-        import tensorflow as tf
-
-        with self.assertRaisesRegex(
-            ValueError, "unknown rank.*tf.ensure_shape"
-        ):
-            standardize_shape(tf.TensorShape(None))
-
-    def test_standardize_shape_with_partially_known_shape(self):
-        import tensorflow as tf
-
-        self.assertEqual(
-            standardize_shape(tf.TensorShape([None, 3])), (None, 3)
-        )

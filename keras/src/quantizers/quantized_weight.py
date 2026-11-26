@@ -41,8 +41,10 @@ class WeightScheme:
         has_zero_point: Whether a zero point is stored.
         group_size: Length of a group along the view's `axis` for a grouped
             scale, or `None` for a per-channel or per-tensor scale. `g_idx`
-            is always authoritative: a group may be shorter, and under
-            GPTQ's activation order the groups are not contiguous.
+            is always authoritative: a group may be shorter, under GPTQ's
+            activation order the groups are not contiguous, and on a view
+            whose stored rows stack several problems the groups restart at
+            each problem, so each problem's last group may be shorter.
     """
 
     code_range: tuple
@@ -184,11 +186,12 @@ class QuantizedWeight:
     them with `read_tensors` and gets the same view over them with
     `with_tensors`.
 
-    The codes are stored as the weight reshaped: `layout.unpack(codes)` is
-    `reshape(W, s)`, where `W` is the weight in `shape` and `s` is the
-    unpacked shape of `codes` (an int4, GPTQ or AWQ einsum kernel is stored
-    as 2-D). `axis` and the stored scale refer to these stored coordinates;
-    `unpack()` and `dequantize()` return `shape`.
+    The codes are stored as the weight transposed and reshaped:
+    `layout.unpack(codes)` is `reshape(transpose(W, permutation), s)`, where
+    `W` is the weight in `shape` and `s` is the unpacked shape of `codes`
+    (an int4, GPTQ or AWQ einsum kernel is stored as 2-D). `axis` and the
+    stored scale refer to these stored coordinates; `unpack()` and
+    `dequantize()` return `shape`.
 
     Args:
         codes: The stored codes, packed as `layout` describes.
@@ -200,8 +203,15 @@ class QuantizedWeight:
             along. A per-channel scale has the codes' shape without this
             axis. A grouped scale and zero point have one entry per group
             along it, and `g_idx` maps each position on it to its group.
-            `None` when the scale broadcasts against the codes as it is (a
-            per-tensor scalar) or `align_scale` lays it out.
+            When the stored rows stack independent problems (the batch
+            axis of a GPTQ or AWQ einsum kernel), the groups restart at
+            each problem and are numbered across the problems, so the
+            scale holds `batch * n_groups` rows and each problem's last
+            group may be shorter; `g_idx` is authoritative. `None` when
+            the scale broadcasts against the codes as it is (a per-tensor
+            scalar) or `align_scale` lays it out.
+        permutation: Axis order of `shape` in which the codes are stored,
+            or `None` for the weight's own order.
         zero_point: The stored zero point, given exactly when
             `scheme.has_zero_point`.
         g_idx: The stored group index, one entry per position along
@@ -226,6 +236,7 @@ class QuantizedWeight:
         scheme,
         shape,
         axis=None,
+        permutation=None,
         zero_point=None,
         g_idx=None,
         input_scales=None,
@@ -267,6 +278,11 @@ class QuantizedWeight:
         self.scheme = scheme
         self.shape = tuple(int(d) for d in shape)
         self.axis = axis
+        if permutation is not None:
+            permutation = tuple(permutation)
+            if permutation == tuple(range(len(self.shape))):
+                permutation = None
+        self.permutation = permutation
         self.zero_point = zero_point
         self.g_idx = g_idx
         self.input_scales = input_scales
@@ -342,7 +358,13 @@ class QuantizedWeight:
         return ops.expand_dims(tensor, self.axis)
 
     def _restore_shape(self, tensor):
-        """Reshapes stored coordinates to `shape`."""
+        """Reshapes and transposes stored coordinates to `shape`."""
+        if self.permutation is not None:
+            permuted = [self.shape[axis] for axis in self.permutation]
+            inverse = sorted(
+                range(len(self.shape)), key=self.permutation.__getitem__
+            )
+            return ops.transpose(ops.reshape(tensor, permuted), inverse)
         if tuple(tensor.shape) != self.shape:
             tensor = ops.reshape(tensor, self.shape)
         return tensor
@@ -350,5 +372,6 @@ class QuantizedWeight:
     def __repr__(self):
         return (
             f"{type(self).__name__}(shape={self.shape}, axis={self.axis}, "
-            f"layout={self.layout!r}, scheme={self.scheme!r})"
+            f"permutation={self.permutation}, layout={self.layout!r}, "
+            f"scheme={self.scheme!r})"
         )

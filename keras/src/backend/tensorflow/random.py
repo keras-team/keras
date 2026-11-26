@@ -7,6 +7,11 @@ from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
 
 
+def seed_dtype():
+    # tensorflow random operation only works on int32/int64, not uint32.
+    return "int64"
+
+
 def _cast_seed(seed):
     # TensorFlow has a device placement issue that `Variable` must be int64
     # in `SeedGenerator`. However, all `tf.random.stateless_*` expect the seed

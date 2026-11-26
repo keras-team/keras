@@ -6,6 +6,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 
 
 class PermuteTest(testing.TestCase):
@@ -26,20 +27,18 @@ class PermuteTest(testing.TestCase):
             np.transpose(inputs, axes=(0, 3, 1, 2))
         )
         if sparse:
-            if backend.backend() == "tensorflow":
+            if config.backend() == "tensorflow":
                 import tensorflow as tf
 
                 inputs = tf.sparse.from_dense(inputs)
                 expected_output = tf.sparse.from_dense(expected_output)
-            elif backend.backend() == "jax":
+            elif config.backend() == "jax":
                 import jax.experimental.sparse as jax_sparse
 
                 inputs = jax_sparse.BCOO.fromdense(inputs)
                 expected_output = jax_sparse.BCOO.fromdense(expected_output)
             else:
-                self.fail(
-                    f"Backend {backend.backend()} does not support sparse"
-                )
+                self.fail(f"Backend {config.backend()} does not support sparse")
 
         self.run_layer_test(
             layers.Permute,

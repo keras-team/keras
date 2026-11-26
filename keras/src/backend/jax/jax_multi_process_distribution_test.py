@@ -7,7 +7,7 @@ from absl.testing import parameterized
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
-from keras.src.backend import backend
+from keras.src.backend import config
 from keras.src.backend.jax import distribution_lib as jax_distribution_lib
 from keras.src.distribution import distribution_lib
 from keras.src.trainers.data_adapters import tf_dataset_adapter
@@ -19,7 +19,7 @@ class MultiProcessTest:
 
 
 @pytest.mark.multi_device
-@pytest.mark.skipif(backend() != "jax", reason="JAX only")
+@pytest.mark.skipif(config.backend() != "jax", reason="JAX only")
 class JaxMultiProcessDistributeTest(
     MultiProcessTest, testing.TestCase, parameterized.TestCase
 ):

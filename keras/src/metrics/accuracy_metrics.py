@@ -1,6 +1,6 @@
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 from keras.src.metrics import reduction_metrics
 
@@ -9,7 +9,7 @@ def accuracy(y_true, y_pred):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
-    return ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx())
+    return ops.cast(ops.equal(y_true, y_pred), dtype=config.floatx())
 
 
 @keras_export("keras.metrics.Accuracy")
@@ -66,7 +66,7 @@ def binary_accuracy(y_true, y_pred, threshold=0.5):
     threshold = ops.convert_to_tensor(threshold)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     y_pred = ops.cast(ops.greater(y_pred, threshold), y_true.dtype)
-    return ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx())
+    return ops.cast(ops.equal(y_true, y_pred), dtype=config.floatx())
 
 
 @keras_export("keras.metrics.BinaryAccuracy")
@@ -151,7 +151,7 @@ def categorical_accuracy(y_true, y_pred):
     # them to match.
     if y_pred.dtype is not y_true.dtype:
         y_pred = ops.cast(y_pred, dtype=y_true.dtype)
-    matches = ops.cast(ops.equal(y_true, y_pred), backend.floatx())
+    matches = ops.cast(ops.equal(y_true, y_pred), config.floatx())
     if reshape_matches:
         matches = ops.reshape(matches, y_true_org_shape)
     return matches
@@ -237,7 +237,7 @@ def sparse_categorical_accuracy(y_true, y_pred):
     # them to match.
     if y_pred.dtype is not y_true.dtype:
         y_pred = ops.cast(y_pred, y_true.dtype)
-    matches = ops.cast(ops.equal(y_true, y_pred), backend.floatx())
+    matches = ops.cast(ops.equal(y_true, y_pred), config.floatx())
     if reshape_matches:
         matches = ops.reshape(matches, y_true_org_shape)
     # if shape is (num_samples, 1) squeeze
@@ -320,7 +320,7 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
 
     matches = ops.cast(
         ops.in_top_k(ops.cast(y_true, "int32"), y_pred, k=k),
-        dtype=backend.floatx(),
+        dtype=config.floatx(),
     )
 
     # returned matches is expected to have same shape as y_true input
@@ -427,7 +427,7 @@ def sparse_top_k_categorical_accuracy(
     else:
         matches = ops.in_top_k(y_true, y_pred, k=k)
 
-    matches = ops.cast(matches, dtype=backend.floatx())
+    matches = ops.cast(matches, dtype=config.floatx())
 
     # returned matches is expected to have same shape as y_true input
     if reshape_matches:

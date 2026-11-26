@@ -4,6 +4,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -80,22 +81,22 @@ class RescalingTest(testing.TestCase):
 
         self.assertTrue(backend.ops.is_tensor(output))
         # Ensure the device of the data is on CPU.
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             self.assertIn("CPU", str(output.device).upper())
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             self.assertIn("CPU", str(output.device).upper())
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             self.assertEqual("cpu", str(output.device))
 
     def test_rescaling_with_channels_first_and_vector_scale(self):
-        config = backend.image_data_format()
-        backend.set_image_data_format("channels_first")
+        image_data_format = config.image_data_format()
+        self.addCleanup(config.set_image_data_format, image_data_format)
+        config.set_image_data_format("channels_first")
         layer = layers.Rescaling(
             scale=[1.0 / 255, 1.5 / 255, 2.0 / 255], offset=0.5
         )
         x = np.random.random((2, 3, 10, 10)) * 255
         layer(x)
-        backend.set_image_data_format(config)
 
     def test_numpy_args(self):
         # https://github.com/keras-team/keras/issues/20072

@@ -4,10 +4,12 @@ import math as python_math
 
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
-from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import any_symbolic_tensors
+from keras.src.backend.common.dtypes import promote_to_float_dtype
 from keras.src.backend.common.dtypes import result_type
+from keras.src.ops.operation import ElementwiseUnaryOperation
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import broadcast_shapes
 from keras.src.ops.operation_utils import reduce_shape
@@ -335,7 +337,7 @@ class Logsumexp(Operation):
     def compute_output_spec(self, x):
         output_shape = reduce_shape(x.shape, self.axis, self.keepdims)
         return KerasTensor(
-            shape=output_shape, dtype=result_type(x.dtype, float)
+            shape=output_shape, dtype=promote_to_float_dtype(x.dtype)
         )
 
     def call(self, x):
@@ -406,7 +408,7 @@ class CDist(Operation):
             )
 
         output_shape = tuple(batch_shape + [x.shape[-2], y.shape[-2]])
-        dtype = result_type(x.dtype, y.dtype, float)
+        dtype = promote_to_float_dtype(result_type(x.dtype, y.dtype))
         return KerasTensor(shape=output_shape, dtype=dtype)
 
 
@@ -646,7 +648,7 @@ class Gammainc(Operation):
         output_shape = broadcast_shapes(x1.shape, x2.shape)
         return KerasTensor(
             shape=output_shape,
-            dtype=result_type(x1.dtype, x2.dtype, float),
+            dtype=promote_to_float_dtype(result_type(x1.dtype, x2.dtype)),
         )
 
     def call(self, x1, x2):
@@ -1151,13 +1153,9 @@ def istft(
     )
 
 
-class Rsqrt(Operation):
-    def call(self, x):
-        x = backend.ops.convert_to_tensor(x)
-        return backend.ops.math.rsqrt(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class Rsqrt(ElementwiseUnaryOperation):
+    call_fn = backend.ops.math.rsqrt
+    promote_to_float = True
 
 
 @keras_export("keras.ops.rsqrt")
@@ -1181,12 +1179,9 @@ def rsqrt(x):
     return backend.ops.math.rsqrt(x)
 
 
-class Erf(Operation):
-    def compute_output_spec(self, x):
-        return KerasTensor(shape=x.shape, dtype=x.dtype)
-
-    def call(self, x):
-        return backend.ops.math.erf(x)
+class Erf(ElementwiseUnaryOperation):
+    call_fn = backend.ops.math.erf
+    promote_to_float = True
 
 
 @keras_export("keras.ops.erf")
@@ -1213,7 +1208,7 @@ def erf(x):
 
 class Erfc(Operation):
     def compute_output_spec(self, x):
-        return KerasTensor(shape=x.shape, dtype=result_type(x.dtype, float))
+        return KerasTensor(shape=x.shape, dtype=promote_to_float_dtype(x.dtype))
 
     def call(self, x):
         return backend.ops.math.erfc(x)
@@ -1240,12 +1235,9 @@ def erfc(x):
     return backend.ops.math.erfc(x)
 
 
-class Erfinv(Operation):
-    def compute_output_spec(self, x):
-        return KerasTensor(shape=x.shape, dtype=x.dtype)
-
-    def call(self, x):
-        return backend.ops.math.erfinv(x)
+class Erfinv(ElementwiseUnaryOperation):
+    call_fn = backend.ops.math.erfinv
+    promote_to_float = True
 
 
 @keras_export("keras.ops.erfinv")
@@ -1392,7 +1384,7 @@ def view_as_real(x):
 
 class Lgamma(Operation):
     def compute_output_spec(self, x):
-        return KerasTensor(shape=x.shape, dtype=result_type(x.dtype, float))
+        return KerasTensor(shape=x.shape, dtype=promote_to_float_dtype(x.dtype))
 
     def call(self, x):
         return _lgamma(x)
@@ -1448,7 +1440,7 @@ def _lgamma(x):
 
     x = backend.ops.convert_to_tensor(x)
     orig_dtype = x.dtype
-    target_dtype = result_type(orig_dtype, float)
+    target_dtype = promote_to_float_dtype(orig_dtype)
     compute_dtype = (
         "float32" if target_dtype in ("float16", "bfloat16") else target_dtype
     )

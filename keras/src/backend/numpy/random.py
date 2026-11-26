@@ -9,6 +9,10 @@ from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
 
 
+def seed_dtype():
+    return "uint32"
+
+
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = draw_seed(seed)

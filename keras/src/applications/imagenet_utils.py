@@ -4,9 +4,9 @@ import warnings
 import numpy as np
 
 from keras.src import activations
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.utils import file_utils
 
 CLASS_INDEX = None
@@ -35,11 +35,11 @@ PREPROCESS_INPUT_DOC = """
         x: A floating point `numpy.array` or a backend-native tensor,
             3D or 4D with 3 color
             channels, with values in the range [0, 255].
-            The preprocessed data are written over the input data
-        if the data types are compatible. To avoid this
-        behaviour, `numpy.copy(x)` can be used.
+            NumPy array inputs are overwritten with the preprocessed data
+            if the data types are compatible. To avoid this, pass
+            `numpy.copy(x)` instead.
         data_format: Optional data format of the image tensor/array. None, means
-        the global setting `keras.backend.image_data_format()` is used
+        the global setting `keras.config.image_data_format()` is used
         (unless you changed it, it uses "channels_last").{mode}
         Defaults to `None`.
 
@@ -93,7 +93,7 @@ def preprocess_input(x, data_format=None, mode="caffe"):
         )
 
     if data_format is None:
-        data_format = backend.image_data_format()
+        data_format = config.image_data_format()
     elif data_format not in {"channels_first", "channels_last"}:
         raise ValueError(
             "Expected data_format to be one of `channels_first` or "
@@ -179,7 +179,7 @@ def _preprocess_numpy_input(x, data_format, mode):
         Preprocessed Numpy array.
     """
     if not issubclass(x.dtype.type, np.floating):
-        x = x.astype(backend.floatx(), copy=False)
+        x = x.astype(config.floatx(), copy=False)
 
     if mode == "tf":
         x /= 127.5
@@ -254,11 +254,11 @@ def _preprocess_tensor_input(x, data_format, mode):
     ndim = len(x.shape)
 
     if mode == "tf":
-        x /= 127.5
-        x -= 1.0
+        x = x / 127.5
+        x = x - 1.0
         return x
     elif mode == "torch":
-        x /= 255.0
+        x = x / 255.0
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
     else:
@@ -284,12 +284,12 @@ def _preprocess_tensor_input(x, data_format, mode):
             mean_tensor = ops.reshape(mean_tensor, (1, 3) + (1,) * (ndim - 2))
     else:
         mean_tensor = ops.reshape(mean_tensor, (1,) * (ndim - 1) + (3,))
-    x += mean_tensor
+    x = x + mean_tensor
     if std is not None:
         std_tensor = ops.convert_to_tensor(np.array(std), dtype=x.dtype)
         if data_format == "channels_first":
             std_tensor = ops.reshape(std_tensor, (-1, 1, 1))
-        x /= std_tensor
+        x = x / std_tensor
     return x
 
 
@@ -423,7 +423,7 @@ def correct_pad(inputs, kernel_size):
     Returns:
       A tuple.
     """
-    img_dim = 2 if backend.image_data_format() == "channels_first" else 1
+    img_dim = 2 if config.image_data_format() == "channels_first" else 1
     input_size = inputs.shape[img_dim : (img_dim + 2)]
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)

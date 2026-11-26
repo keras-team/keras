@@ -7,6 +7,9 @@ from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import tree
+from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import StatelessScope
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer
@@ -212,6 +215,7 @@ class BaseTrainer:
                 stacklevel=2,
             )
 
+        self._jit_compile = None
         self.jit_compile = jit_compile
         self.run_eagerly = run_eagerly
         self.stop_training = False
@@ -252,15 +256,22 @@ class BaseTrainer:
                 "Proceeding with `jit_compile=False`."
             )
             self._jit_compile = False
+        elif value and _uses_multi_replica_tf_distribute(self):
+            warnings.warn(
+                "`jit_compile=True` is not supported with a multi-replica "
+                "`tf.distribute` strategy. Proceeding with "
+                "`jit_compile=False`."
+            )
+            self._jit_compile = False
         else:
             self._jit_compile = value
 
     def _resolve_auto_jit_compile(self):
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             # jit_compile = "auto" with the pytorch backend defaults to eager
             return False
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             devices = tf.config.list_physical_devices()
@@ -268,7 +279,7 @@ class BaseTrainer:
                 # Disable XLA on CPU-only machines.
                 return False
 
-            if self._distribute_strategy:
+            if self._distribute_strategy or tf.distribute.has_strategy():
                 # Disable XLA with tf.distribute
                 return False
 
@@ -391,7 +402,7 @@ class BaseTrainer:
                 losses.append(loss)
         for loss in self.losses:
             losses.append(self._aggregate_additional_loss(loss))
-        if backend.backend() != "jax" and len(losses) == 0:
+        if config.backend() != "jax" and len(losses) == 0:
             raise ValueError(
                 "No loss to compute. Provide a `loss` argument in `compile()`."
             )
@@ -435,7 +446,7 @@ class BaseTrainer:
             necessary.
         """
         if not is_float_dtype(loss.dtype):
-            loss = ops.cast(loss, dtype=backend.floatx())
+            loss = ops.cast(loss, dtype=config.floatx())
         return ops.sum(loss)
 
     def stateless_compute_loss(
@@ -454,7 +465,7 @@ class BaseTrainer:
             zip(self.non_trainable_variables, non_trainable_variables)
         )
         var_mapping.extend(zip(self.metrics_variables, metrics_variables))
-        with backend.StatelessScope(state_mapping=var_mapping) as scope:
+        with StatelessScope(state_mapping=var_mapping) as scope:
             # Note that this is needed for the regularization loss, which need
             # the latest value of train/non-trainable variables.
             loss = self._compute_loss(
@@ -1164,7 +1175,7 @@ class BaseTrainer:
             def to_symbolic_input(v):
                 if v is None:
                     return None
-                return backend.KerasTensor(v.shape, standardize_dtype(v.dtype))
+                return KerasTensor(v.shape, standardize_dtype(v.dtype))
 
             if data_batch is None:
                 for _, _, data_or_iterator in iterator:
@@ -1230,14 +1241,14 @@ class BaseTrainer:
 def model_supports_jit(model):
     # XLA not supported with TF on MacOS GPU
     if platform.system() == "Darwin" and "arm" in platform.processor().lower():
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             from keras.src.utils.module_utils import tensorflow as tf
 
             if tf.config.list_physical_devices("GPU"):
                 return False
     # XLA not supported by some layers
     if all(x.supports_jit for x in model._flatten_layers()):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             from tensorflow.python.framework.config import (
                 is_op_determinism_enabled,
             )
@@ -1248,3 +1259,14 @@ def model_supports_jit(model):
                 return False
         return True
     return False
+
+
+def _uses_multi_replica_tf_distribute(model):
+    if config.backend() != "tensorflow":
+        return False
+    from keras.src.utils.module_utils import tensorflow as tf
+
+    strategy = model.distribute_strategy
+    return strategy.num_replicas_in_sync > 1 and not isinstance(
+        strategy, tf.distribute.TPUStrategy
+    )

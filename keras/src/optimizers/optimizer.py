@@ -1,16 +1,16 @@
-from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.optimizers import base_optimizer
 
-if backend.backend() == "tensorflow":
+if config.backend() == "tensorflow":
     from keras.src.backend.tensorflow.optimizer import (
         TFOptimizer as BackendOptimizer,
     )
-elif backend.backend() == "torch":
+elif config.backend() == "torch":
     from keras.src.backend.torch.optimizers import (
         TorchOptimizer as BackendOptimizer,
     )
-elif backend.backend() == "jax":
+elif config.backend() == "jax":
     from keras.src.backend.jax.optimizer import JaxOptimizer as BackendOptimizer
 else:
 

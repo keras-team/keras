@@ -1,22 +1,24 @@
 """Tests for ONNX exporting utilities."""
 
 import os
+from unittest import mock
 
 import numpy as np
 import onnxruntime
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.export import onnx
 from keras.src.layers.input_spec import InputSpec as InputSpec
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
+from keras.src.utils import module_utils
 
 
 class CustomModel(models.Model):
@@ -71,24 +73,41 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
 
 
 @pytest.mark.skipif(
-    backend.backend() not in ("tensorflow", "jax", "torch"),
+    config.backend() not in ("tensorflow", "jax", "torch"),
     reason=(
         "`export_onnx` only currently supports the tensorflow, jax and torch "
         "backends."
     ),
 )
 class ExportONNXTest(testing.TestCase):
+    @pytest.mark.skipif(
+        config.backend() != "tensorflow",
+        reason="The tf2onnx version check is specific to TensorFlow.",
+    )
+    def test_tf2onnx_minimum_version(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = get_model()
+        model(np.zeros((1, 10), dtype="float32"))
+
+        with mock.patch.object(module_utils.tf2onnx, "__version__", "1.16.1"):
+            with self.assertRaisesRegex(
+                ImportError,
+                r"requires `tf2onnx>=1\.17\.0`, but found "
+                r"`tf2onnx==1\.16\.1`",
+            ):
+                onnx.export_onnx(model, temp_filepath, verbose=False)
+
     @parameterized.named_parameters(
         named_product(
             model_type=["sequential", "functional", "subclass", "lstm"]
         )
     )
     def test_standard_model_export(self, model_type):
-        if model_type == "lstm" and backend.backend() in ("jax", "tensorflow"):
+        if model_type == "lstm" and config.backend() in ("jax", "tensorflow"):
             self.skipTest("Bidirectional LSTM is unsupported.")
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model(model_type)
-        batch_size = 3 if backend.backend() != "torch" else 1
+        batch_size = 3 if config.backend() != "torch" else 1
         if model_type == "lstm":
             ref_input = np.random.normal(size=(batch_size, 4, 10))
         else:
@@ -126,7 +145,7 @@ class ExportONNXTest(testing.TestCase):
         named_product(struct_type=["tuple", "array", "dict"])
     )
     def test_model_with_input_structure(self, struct_type):
-        if backend.backend() == "torch" and struct_type == "tuple":
+        if config.backend() == "torch" and struct_type == "tuple":
             self.skipTest("The torch backend doesn't support this structure.")
 
         class TupleModel(models.Model):
@@ -146,7 +165,7 @@ class ExportONNXTest(testing.TestCase):
                 y = inputs["y"]
                 return ops.add(x, y)
 
-        batch_size = 3 if backend.backend() != "torch" else 1
+        batch_size = 3 if config.backend() != "torch" else 1
         ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
         if struct_type == "tuple":
             model = TupleModel()
@@ -219,7 +238,7 @@ class ExportONNXTest(testing.TestCase):
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = TwoInputsModel()
-        batch_size = 3 if backend.backend() != "torch" else 1
+        batch_size = 3 if config.backend() != "torch" else 1
         ref_input_x = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_input_y = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input_x, ref_input_y)
@@ -252,7 +271,7 @@ class ExportONNXTest(testing.TestCase):
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model("sequential")
-        batch_size = 3 if backend.backend() != "torch" else 1
+        batch_size = 3 if config.backend() != "torch" else 1
         ref_input = np.random.normal(size=(batch_size, 10))
         ref_input = ref_input.astype("float32")
         ref_output = model(ref_input)
@@ -281,7 +300,7 @@ class ExportONNXTest(testing.TestCase):
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model("sequential")
-        batch_size = 3 if backend.backend() != "torch" else 1
+        batch_size = 3 if config.backend() != "torch" else 1
         ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input)
 
@@ -323,7 +342,7 @@ class ExportONNXTest(testing.TestCase):
         """
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-        channels_last = backend.image_data_format() == "channels_last"
+        channels_last = config.image_data_format() == "channels_last"
 
         # Define input shapes based on dynamic type, ordered for the active
         # image data format so the channel axis is always static. The torch CI
@@ -406,7 +425,7 @@ class ExportONNXTest(testing.TestCase):
         """Test ONNX export with multi-input model having dynamic shapes."""
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-        channels_last = backend.image_data_format() == "channels_last"
+        channels_last = config.image_data_format() == "channels_last"
 
         # Create multi-input model with dynamic shapes. The image input is
         # ordered for the active data format so the dynamic spatial axes never
@@ -499,7 +518,7 @@ class ExportONNXTest(testing.TestCase):
             self.assertEqual(result[0].shape[1], 5)  # Number of classes
 
     @pytest.mark.skipif(
-        backend.backend() != "torch",
+        config.backend() != "torch",
         reason="The dynamic recurrent guard is specific to the torch backend.",
     )
     def test_dynamic_sequence_recurrent_raises(self):
@@ -519,7 +538,7 @@ class ExportONNXTest(testing.TestCase):
             onnx.export_onnx(model, temp_filepath, verbose=False)
 
     @pytest.mark.skipif(
-        backend.backend() != "torch",
+        config.backend() != "torch",
         reason="The dynamic recurrent guard is specific to the torch backend.",
     )
     def test_static_sequence_recurrent_dynamic_batch_exports(self):
@@ -550,7 +569,7 @@ class ExportONNXTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "torch",
+        config.backend() != "torch",
         reason="The dynamic recurrent guard is specific to the torch backend.",
     )
     def test_static_recurrent_with_dynamic_nonrecurrent_input_exports(self):
@@ -562,7 +581,7 @@ class ExportONNXTest(testing.TestCase):
         length is static.
         """
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-        channels_last = backend.image_data_format() == "channels_last"
+        channels_last = config.image_data_format() == "channels_last"
         seq_input = layers.Input(shape=(10, 16), name="seq_input")
         image_input = layers.Input(
             shape=(None, None, 3) if channels_last else (3, None, None),

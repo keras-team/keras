@@ -4,18 +4,18 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
 from keras.src.utils.module_utils import tensorflow
 
 # LiteRT tests require the AI Edge LiteRT interpreter.
-if backend.backend() != "tensorflow":
+if config.backend() != "tensorflow":
     LiteRTInterpreter = None
 else:
     try:
@@ -153,7 +153,7 @@ def _get_interpreter_outputs(interpreter):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "tensorflow",
+    config.backend() != "tensorflow",
     reason="`export_litert` currently supports the TensorFlow backend only.",
 )
 class ExportLitertBasicTest(testing.TestCase):
@@ -187,7 +187,7 @@ class ExportLitertBasicTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "tensorflow",
+    config.backend() != "tensorflow",
     reason="`export_litert` currently supports the TensorFlow backend only.",
 )
 @pytest.mark.skipif(

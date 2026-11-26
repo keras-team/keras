@@ -7,6 +7,7 @@ from keras.src import initializers
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import set_keras_mask
 from keras.src.backend.config import disable_flash_attention
@@ -102,7 +103,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() not in ("jax", "torch"),
+        config.backend() not in ("jax", "torch"),
         reason="Flash attention only supported on JAX and Torch",
     )
     def test_basics_with_flash_attention(self):
@@ -118,7 +119,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
             "value_shape": (2, 4, 16),
         }
         expected_output_shape = (2, 8, 16)
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             try:
                 self.run_layer_test(
                     layers.GroupedQueryAttention,
@@ -153,7 +154,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
                         )
                         in str(e.args[0])
                     )
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             try:
                 self.run_layer_test(
                     layers.GroupedQueryAttention,
@@ -634,7 +635,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
             self.assertAllClose(scores, expected_score, atol=1e-2)
 
     def test_flash_attention_with_errors(self):
-        if backend.backend() in ("numpy", "tensorflow"):
+        if config.backend() in ("numpy", "tensorflow"):
             pytest.skip(
                 reason=(
                     "Flash attention is not supported on tensorflow and numpy."
@@ -670,3 +671,13 @@ class GroupedQueryAttentionTest(testing.TestCase):
             " attention scores.",
         ):
             layer(query=query, value=value, return_attention_scores=True)
+
+    def test_numpy_integer_sliding_window(self):
+        layer = layers.GroupedQueryAttention(
+            head_dim=2,
+            num_query_heads=2,
+            num_key_value_heads=2,
+            sliding_window=np.int64(3),
+        )
+        self.assertIs(type(layer.sliding_window), int)
+        self.assertEqual(layer.sliding_window, 3)

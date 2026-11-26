@@ -6,14 +6,14 @@ import warnings
 import numpy as np
 
 from keras.src import tree
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import KerasVariable
+from keras.src.backend.common import StatelessScope
+from keras.src.backend.common import SymbolicScope
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import empty_scan_ys_spec
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.dtypes import result_type
-from keras.src.backend.common.keras_tensor import KerasTensor
-from keras.src.backend.common.stateless_scope import StatelessScope
-from keras.src.backend.common.symbolic_scope import SymbolicScope
 
 
 class Variable(KerasVariable):
@@ -27,8 +27,10 @@ class Variable(KerasVariable):
         return convert_to_tensor(value, dtype=dtype)
 
     # Overload native accessor.
-    def __array__(self):
-        return self.value
+    def __array__(self, dtype=None, *, copy=None):
+        if copy is not None:
+            return self.value.__array__(dtype, copy=copy)
+        return self.value.__array__(dtype)
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
@@ -452,10 +454,6 @@ def stop_gradient(variable):
 
 def unstack(x, num=None, axis=0):
     return list(np.moveaxis(x, axis, 0))
-
-
-def random_seed_dtype():
-    return "uint32"
 
 
 class custom_gradient:

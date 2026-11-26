@@ -1,13 +1,14 @@
 import warnings
 
-from keras.src import backend
+from packaging.version import parse as parse_version
+
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.export.export_utils import convert_spec_to_tensor
 from keras.src.export.export_utils import get_input_signature
 from keras.src.export.export_utils import make_tf_tensor_spec
 from keras.src.export.saved_model import DEFAULT_ENDPOINT_NAME
 from keras.src.export.saved_model import ExportArchive
-from keras.src.export.tf2onnx_lib import patch_tf2onnx
 from keras.src.utils import io_utils
 
 
@@ -36,8 +37,8 @@ def export_onnx(
             formats.
         input_signature: Optional. Specifies the shape and dtype of the model
             inputs. Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
-            `backend.KerasTensor`, or backend tensor. If not provided, it will
-            be automatically computed. Defaults to `None`.
+            `KerasTensor`, or backend tensor. If not provided, it will be
+            automatically computed. Defaults to `None`.
         opset_version: Optional. An integer value that specifies the ONNX opset
             version. If not provided, the default version for the backend will
             be used. Defaults to `None`.
@@ -96,8 +97,17 @@ def export_onnx(
         for i, spec in enumerate(specs_for_names)
     ]
 
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         from keras.src.utils.module_utils import tf2onnx
+
+        if parse_version(tf2onnx.__version__) < parse_version("1.17.0"):
+            raise ImportError(
+                "ONNX export with the TensorFlow backend requires "
+                f"`tf2onnx>=1.17.0`, but found "
+                f"`tf2onnx=={tf2onnx.__version__}`. You can install a "
+                "compatible version via "
+                "`pip install 'tf2onnx>=1.17.0'`."
+            )
 
         input_signature = tree.map_structure(
             make_tf_tensor_spec, input_signature
@@ -105,7 +115,6 @@ def export_onnx(
         decorated_fn = get_concrete_fn(model, input_signature, **kwargs)
 
         # Use `tf2onnx` to convert the `decorated_fn` to the ONNX format.
-        patch_tf2onnx()  # TODO: Remove this once `tf2onnx` supports numpy 2.
         tf2onnx.convert.from_function(
             decorated_fn,
             input_signature,
@@ -113,10 +122,10 @@ def export_onnx(
             output_path=filepath,
         )
 
-    elif backend.backend() == "jax":
+    elif config.backend() == "jax":
         _export_onnx_jax(model, filepath, input_signature, opset_version)
 
-    elif backend.backend() == "torch":
+    elif config.backend() == "torch":
         import torch
 
         # Flatten `input_signature` so nested structures (e.g. dict, list,
@@ -378,6 +387,6 @@ def get_concrete_fn(model, input_signature, **kwargs):
     export_archive.track_and_add_endpoint(
         DEFAULT_ENDPOINT_NAME, model, input_signature, **kwargs
     )
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         export_archive._filter_and_track_resources()
     return export_archive._get_concrete_fn(DEFAULT_ENDPOINT_NAME)

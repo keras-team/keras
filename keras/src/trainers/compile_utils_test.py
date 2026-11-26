@@ -3,12 +3,12 @@ from collections import namedtuple
 import numpy as np
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import metrics as losses_module
 from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend.common import KerasTensor
 from keras.src.losses import loss
 from keras.src.trainers.compile_utils import CompileLoss
 from keras.src.trainers.compile_utils import CompileMetrics
@@ -21,8 +21,8 @@ class TestCompileMetrics(testing.TestCase):
             weighted_metrics=[metrics_module.MeanSquaredError()],
         )
         # Test symbolic build
-        y_true = backend.KerasTensor((3, 4))
-        y_pred = backend.KerasTensor((3, 4))
+        y_true = KerasTensor((3, 4))
+        y_pred = KerasTensor((3, 4))
         compile_metrics.build(y_true, y_pred)
         # Test eager build
         y_true = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
@@ -75,8 +75,8 @@ class TestCompileMetrics(testing.TestCase):
             ],
         )
         # Test symbolic build
-        y_true = [backend.KerasTensor((3, 2)), backend.KerasTensor((3, 3))]
-        y_pred = [backend.KerasTensor((3, 2)), backend.KerasTensor((3, 3))]
+        y_true = [KerasTensor((3, 2)), KerasTensor((3, 3))]
+        y_pred = [KerasTensor((3, 2)), KerasTensor((3, 3))]
         compile_metrics.build(y_true, y_pred)
         self.assertEqual(len(compile_metrics.metrics), 8)
 
@@ -142,12 +142,12 @@ class TestCompileMetrics(testing.TestCase):
         )
         # Test symbolic build
         y_true = {
-            "output_1": backend.KerasTensor((3, 2)),
-            "output_2": backend.KerasTensor((3, 3)),
+            "output_1": KerasTensor((3, 2)),
+            "output_2": KerasTensor((3, 3)),
         }
         y_pred = {
-            "output_1": backend.KerasTensor((3, 2)),
-            "output_2": backend.KerasTensor((3, 3)),
+            "output_1": KerasTensor((3, 2)),
+            "output_2": KerasTensor((3, 3)),
         }
         compile_metrics.build(y_true, y_pred)
         # Test eager build
@@ -260,12 +260,12 @@ class TestCompileMetrics(testing.TestCase):
 
         # Symbolic build with dict outputs keyed by user-facing names.
         y_true = {
-            "b": backend.KerasTensor((3, 5)),
-            "a": backend.KerasTensor((3, 2)),
+            "b": KerasTensor((3, 5)),
+            "a": KerasTensor((3, 2)),
         }
         y_pred = [
-            backend.KerasTensor((3, 5)),
-            backend.KerasTensor((3, 2)),
+            KerasTensor((3, 5)),
+            KerasTensor((3, 2)),
         ]
 
         compile_metrics.build(y_true, y_pred)
@@ -308,12 +308,12 @@ class TestCompileMetrics(testing.TestCase):
 
         # Symbolic build with dict outputs keyed by user-facing names.
         y_true = {
-            "a": backend.KerasTensor((3, 2)),
-            "b": backend.KerasTensor((3, 2)),
+            "a": KerasTensor((3, 2)),
+            "b": KerasTensor((3, 2)),
         }
         y_pred = {
-            "a": backend.KerasTensor((3, 2)),
-            "b": backend.KerasTensor((3, 2)),
+            "a": KerasTensor((3, 2)),
+            "b": KerasTensor((3, 2)),
         }
 
         compile_metrics.build(y_true, y_pred)
@@ -361,12 +361,12 @@ class TestCompileMetrics(testing.TestCase):
 
         # Symbolic build with dict outputs keyed by user-facing names.
         y_true = {
-            "a": backend.KerasTensor((3, 2)),
-            "b": backend.KerasTensor((3, 5)),
+            "a": KerasTensor((3, 2)),
+            "b": KerasTensor((3, 5)),
         }
         y_pred = {
-            "a": backend.KerasTensor((3, 2)),
-            "b": backend.KerasTensor((3, 5)),
+            "a": KerasTensor((3, 2)),
+            "b": KerasTensor((3, 5)),
         }
 
         compile_metrics.build(y_true, y_pred)
@@ -411,12 +411,12 @@ class TestCompileMetrics(testing.TestCase):
 
         # Symbolic build with dict outputs keyed by user-facing names.
         y_true = {
-            "a": backend.KerasTensor((3, 2)),
-            "b": backend.KerasTensor((3, 5)),
+            "a": KerasTensor((3, 2)),
+            "b": KerasTensor((3, 5)),
         }
         y_pred = {
-            "a": backend.KerasTensor((3, 2)),
-            "b": backend.KerasTensor((3, 5)),
+            "a": KerasTensor((3, 2)),
+            "b": KerasTensor((3, 5)),
         }
 
         # The build method should correctly map metrics for outputs 'a' and 'b',
@@ -468,17 +468,17 @@ class TestCompileMetrics(testing.TestCase):
         )
 
         y_true = {
-            "a": backend.KerasTensor((3, 2)),
+            "a": KerasTensor((3, 2)),
             "b": {
-                "c": backend.KerasTensor((3, 5)),
-                "d": [backend.KerasTensor((3, 7)), backend.KerasTensor((3, 9))],
+                "c": KerasTensor((3, 5)),
+                "d": [KerasTensor((3, 7)), KerasTensor((3, 9))],
             },
         }
         y_pred = {
-            "a": backend.KerasTensor((3, 2)),
+            "a": KerasTensor((3, 2)),
             "b": {
-                "c": backend.KerasTensor((3, 5)),
-                "d": [backend.KerasTensor((3, 7)), backend.KerasTensor((3, 9))],
+                "c": KerasTensor((3, 5)),
+                "d": [KerasTensor((3, 7)), KerasTensor((3, 9))],
             },
         }
 
@@ -537,8 +537,8 @@ class TestCompileLoss(testing.TestCase):
             loss=losses_module.MeanSquaredError(),
         )
         # Test symbolic build
-        y_true = backend.KerasTensor((3, 4))
-        y_pred = backend.KerasTensor((3, 4))
+        y_true = KerasTensor((3, 4))
+        y_pred = KerasTensor((3, 4))
         compile_loss.build(y_true, y_pred)
         # Test eager build
         y_true = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
@@ -551,8 +551,8 @@ class TestCompileLoss(testing.TestCase):
         compile_loss = CompileLoss(loss="crossentropy")
 
         # Test symbolic build
-        y_true = backend.KerasTensor((3, 4))
-        y_pred = backend.KerasTensor((3, 4))
+        y_true = KerasTensor((3, 4))
+        y_pred = KerasTensor((3, 4))
         compile_loss.build(y_true, y_pred)
         # Test eager build
         y_true = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
@@ -573,8 +573,8 @@ class TestCompileLoss(testing.TestCase):
                 loss=["mse", "mse"],
             )
         # Test symbolic build
-        y_true = [backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))]
-        y_pred = [backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))]
+        y_true = [KerasTensor((3, 4)), KerasTensor((3, 4))]
+        y_pred = [KerasTensor((3, 4)), KerasTensor((3, 4))]
         compile_loss.build(y_true, y_pred)
         # Test eager build
         y_true = [
@@ -602,12 +602,12 @@ class TestCompileLoss(testing.TestCase):
             )
         # Test symbolic build
         y_true = {
-            "a": backend.KerasTensor((3, 4)),
-            "b": backend.KerasTensor((3, 4)),
+            "a": KerasTensor((3, 4)),
+            "b": KerasTensor((3, 4)),
         }
         y_pred = {
-            "a": backend.KerasTensor((3, 4)),
-            "b": backend.KerasTensor((3, 4)),
+            "a": KerasTensor((3, 4)),
+            "b": KerasTensor((3, 4)),
         }
         compile_loss.build(y_true, y_pred)
         # Test eager build
@@ -629,8 +629,8 @@ class TestCompileLoss(testing.TestCase):
 
     def test_list_loss_dict_data(self):
         compile_loss = CompileLoss(loss=["mse", "mae"], output_names=["b", "a"])
-        y_true = [backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))]
-        y_pred = [backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))]
+        y_true = [KerasTensor((3, 4)), KerasTensor((3, 4))]
+        y_pred = [KerasTensor((3, 4)), KerasTensor((3, 4))]
         compile_loss.build(y_true, y_pred)
         y_true = {
             "a": np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
@@ -660,12 +660,8 @@ class TestCompileLoss(testing.TestCase):
         }
         loss = {"a": {"c": "mse", "d": "mae"}}
         compile_loss = CompileLoss(loss=loss, output_names=["c", "d", "b"])
-        y_true_symb = tree.map_structure(
-            lambda _: backend.KerasTensor((3, 4)), y_true
-        )
-        y_pred_symb = tree.map_structure(
-            lambda _: backend.KerasTensor((3, 4)), y_pred
-        )
+        y_true_symb = tree.map_structure(lambda _: KerasTensor((3, 4)), y_true)
+        y_pred_symb = tree.map_structure(lambda _: KerasTensor((3, 4)), y_pred)
         compile_loss.build(y_true_symb, y_pred_symb)
         value = compile_loss(y_true, y_pred)
         self.assertAllClose(value, 1.07666, atol=1e-5)
@@ -716,12 +712,8 @@ class TestCompileLoss(testing.TestCase):
         compile_loss = CompileLoss(
             loss=loss, output_names=["c", "d", "b"], loss_weights=[1]
         )
-        y_true_symb = tree.map_structure(
-            lambda _: backend.KerasTensor((3, 4)), y_true
-        )
-        y_pred_symb = tree.map_structure(
-            lambda _: backend.KerasTensor((3, 4)), y_pred
-        )
+        y_true_symb = tree.map_structure(lambda _: KerasTensor((3, 4)), y_true)
+        y_pred_symb = tree.map_structure(lambda _: KerasTensor((3, 4)), y_pred)
         with self.assertRaisesRegex(
             ValueError, "must match the number of losses"
         ):
@@ -744,12 +736,8 @@ class TestCompileLoss(testing.TestCase):
         }
         loss = {"a": ["mse", "mae"]}
         compile_loss = CompileLoss(loss=loss, output_names=["c", "d", "b"])
-        y_true_symb = tree.map_structure(
-            lambda _: backend.KerasTensor((3, 4)), y_true
-        )
-        y_pred_symb = tree.map_structure(
-            lambda _: backend.KerasTensor((3, 4)), y_pred
-        )
+        y_true_symb = tree.map_structure(lambda _: KerasTensor((3, 4)), y_true)
+        y_pred_symb = tree.map_structure(lambda _: KerasTensor((3, 4)), y_pred)
         compile_loss.build(y_true_symb, y_pred_symb)
         value = compile_loss(y_true, y_pred)
         self.assertAllClose(value, 1.07666, atol=1e-5)
@@ -772,12 +760,8 @@ class TestCompileLoss(testing.TestCase):
         }
         loss = {"a": Point("mse", "mae")}
         compile_loss = CompileLoss(loss=loss, output_names=["c", "d", "b"])
-        y_true_symb = tree.map_structure(
-            lambda _: backend.KerasTensor((3, 4)), y_true
-        )
-        y_pred_symb = tree.map_structure(
-            lambda _: backend.KerasTensor((3, 4)), y_pred
-        )
+        y_true_symb = tree.map_structure(lambda _: KerasTensor((3, 4)), y_true)
+        y_pred_symb = tree.map_structure(lambda _: KerasTensor((3, 4)), y_pred)
         compile_loss.build(y_true_symb, y_pred_symb)
         value = compile_loss(y_true, y_pred)
         self.assertAllClose(value, 1.07666, atol=1e-5)
@@ -799,12 +783,8 @@ class TestCompileLoss(testing.TestCase):
         }
         loss = {"a": {"c": "mse"}, "b": {"d": "mae"}}
         compile_loss = CompileLoss(loss=loss, output_names=["c", "d", "b"])
-        y_true_symb = tree.map_structure(
-            lambda _: backend.KerasTensor((3, 4)), y_true
-        )
-        y_pred_symb = tree.map_structure(
-            lambda _: backend.KerasTensor((3, 4)), y_pred
-        )
+        y_true_symb = tree.map_structure(lambda _: KerasTensor((3, 4)), y_true)
+        y_pred_symb = tree.map_structure(lambda _: KerasTensor((3, 4)), y_pred)
         with self.assertRaisesRegex(
             KeyError, "can't be found in the model's output"
         ):
@@ -816,12 +796,8 @@ class TestCompileLoss(testing.TestCase):
         y_pred = [({"a": y1}, {"b": [(y2,), y3]})]
         loss = "mse"
         compile_loss = CompileLoss(loss=loss, output_names=["a", "b", "c"])
-        y_true_symb = tree.map_structure(
-            lambda _: backend.KerasTensor((1, 1)), y_true
-        )
-        y_pred_symb = tree.map_structure(
-            lambda _: backend.KerasTensor((1, 1)), y_pred
-        )
+        y_true_symb = tree.map_structure(lambda _: KerasTensor((1, 1)), y_true)
+        y_pred_symb = tree.map_structure(lambda _: KerasTensor((1, 1)), y_pred)
         compile_loss.build(y_true_symb, y_pred_symb)
         compile_loss(y_true, y_pred)
 
@@ -830,12 +806,8 @@ class TestCompileLoss(testing.TestCase):
         y_pred = [np.array([[1]]), np.array([[1]])]
         loss = ["mse", "mse"]
         compile_loss = CompileLoss(loss=loss, output_names=["a", "b"])
-        y_true_symb = tree.map_structure(
-            lambda _: backend.KerasTensor((1, 1)), y_true
-        )
-        y_pred_symb = tree.map_structure(
-            lambda _: backend.KerasTensor((1, 1)), y_pred
-        )
+        y_true_symb = tree.map_structure(lambda _: KerasTensor((1, 1)), y_true)
+        y_pred_symb = tree.map_structure(lambda _: KerasTensor((1, 1)), y_pred)
         compile_loss.build(y_true_symb, y_pred_symb)
         with self.assertRaisesRegex(
             ValueError, "y_true and y_pred have different structures."

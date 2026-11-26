@@ -7,6 +7,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.backend import config
 
 
 class MultiOptimizerTest(testing.TestCase):
@@ -94,7 +95,7 @@ class MultiOptimizerTest(testing.TestCase):
         )
 
     def test_stateful_apply(self):
-        if backend.backend() == "jax":
+        if config.backend() == "jax":
             self.skipTest(
                 "stateful_apply is not supported with the JAX backend"
             )
@@ -137,7 +138,7 @@ class MultiOptimizerTest(testing.TestCase):
             self.assertEqual(int(opt.iterations), 1)
 
     def test_stateless_apply(self):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             self.skipTest(
                 "stateless_apply is not supported with the TensorFlow backend "
                 "(as it is incompatible with tf.distribute)."
@@ -631,7 +632,7 @@ class MultiOptimizerTest(testing.TestCase):
 
         # Expected unscaled grads: 10.0 / 10.0 = 1.0
         # Expected updates: 2.0 - lr * 1.0 = 2.0 - 0.1 * 1.0 = 1.9
-        if backend.backend() == "jax":
+        if config.backend() == "jax":
             new_trainable, _ = lso_opt.stateless_apply(
                 [v.value for v in lso_opt.variables],
                 grads,

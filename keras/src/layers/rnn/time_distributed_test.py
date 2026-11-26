@@ -1,11 +1,11 @@
 import numpy as np
 import pytest
 
-from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.models import Sequential
 
 
@@ -22,7 +22,7 @@ class TimeDistributedTest(testing.TestCase):
         )
 
     def test_build(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (10, 128, 128, 3)
             output_shape = (32, 10, 126, 126, 64)
         else:

@@ -4,4 +4,25 @@ from keras.src.backend.jax.ops import linalg
 from keras.src.backend.jax.ops import math
 from keras.src.backend.jax.ops import nn
 from keras.src.backend.jax.ops import numpy
-from keras.src.backend.jax.ops.core import *  # noqa: F403
+from keras.src.backend.jax.ops.core import associative_scan
+from keras.src.backend.jax.ops.core import cast
+from keras.src.backend.jax.ops.core import cond
+from keras.src.backend.jax.ops.core import convert_to_numpy
+from keras.src.backend.jax.ops.core import convert_to_tensor
+from keras.src.backend.jax.ops.core import custom_gradient
+from keras.src.backend.jax.ops.core import fori_loop
+from keras.src.backend.jax.ops.core import grad
+from keras.src.backend.jax.ops.core import is_tensor
+from keras.src.backend.jax.ops.core import map
+from keras.src.backend.jax.ops.core import remat
+from keras.src.backend.jax.ops.core import scan
+from keras.src.backend.jax.ops.core import scatter
+from keras.src.backend.jax.ops.core import scatter_update
+from keras.src.backend.jax.ops.core import shape
+from keras.src.backend.jax.ops.core import slice
+from keras.src.backend.jax.ops.core import slice_update
+from keras.src.backend.jax.ops.core import stop_gradient
+from keras.src.backend.jax.ops.core import switch
+from keras.src.backend.jax.ops.core import unstack
+from keras.src.backend.jax.ops.core import vectorized_map
+from keras.src.backend.jax.ops.core import while_loop

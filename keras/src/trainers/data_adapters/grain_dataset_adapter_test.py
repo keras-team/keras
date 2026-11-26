@@ -4,7 +4,7 @@ import pytest
 import torch
 from absl.testing import parameterized
 
-from keras.src import backend
+from keras.src.backend import config
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters import grain_dataset_adapter
@@ -79,13 +79,13 @@ class GrainDatasetAdapterTest(data_adapter_test_base.DataAdapterTest):
         self.assertEqual(adapter.has_partial_batch, None)
         self.assertEqual(adapter.partial_batch_size, None)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = np.ndarray
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
         else:
@@ -142,13 +142,13 @@ class GrainDatasetAdapterTest(data_adapter_test_base.DataAdapterTest):
         )
         adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = np.ndarray
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
         else:
@@ -216,7 +216,7 @@ class GrainDatasetAdapterTest(data_adapter_test_base.DataAdapterTest):
                 "This is not a grain.Dataset"
             )
 
-    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+    @pytest.mark.skipif(config.backend() != "jax", reason="JAX only")
     def test_get_jax_iterator_with_super_batch(self):
         # Even batches: 4 batches with super_batch=2 -> 2 super-batches
         ds_even = self._get_dataset("map_dataset", num_samples=64)

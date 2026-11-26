@@ -10,4 +10,4 @@ permissions:
 
 jobs:
   zizmor:
-    uses: keras-team/shared-workflows/.github/workflows/zizmor.yml@39975a3069a8b94529025e34a875cbf3a3fb7ab4
+    uses: keras-team/shared-workflows/.github/workflows/zizmor.yml@32f8421420f190c8c1b3cbe98326bc011687a933

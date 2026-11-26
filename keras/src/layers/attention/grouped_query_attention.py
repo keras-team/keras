@@ -5,11 +5,13 @@ from keras.src import constraints
 from keras.src import initializers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.config import is_flash_attention_enabled
 from keras.src.layers.activations.softmax import Softmax
 from keras.src.layers.core.einsum_dense import EinsumDense
 from keras.src.layers.layer import Layer
 from keras.src.layers.regularization.dropout import Dropout
+from keras.src.utils import argument_validation
 
 
 @keras_export(
@@ -134,14 +136,9 @@ class GroupedQueryAttention(Layer):
         self.dropout = dropout
         self.use_bias = use_bias
         self.use_gate = use_gate
-        if sliding_window is not None and (
-            not isinstance(sliding_window, int) or sliding_window <= 0
-        ):
-            raise ValueError(
-                "`sliding_window` must be `None` or a positive integer. "
-                f"Received: sliding_window={sliding_window}"
-            )
-        self.sliding_window = sliding_window
+        self.sliding_window = argument_validation.validate_int(
+            "sliding_window", sliding_window, allow_none=True, min_value=1
+        )
         self._flash_attention = flash_attention or is_flash_attention_enabled()
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.bias_initializer = initializers.get(bias_initializer)
@@ -629,9 +626,7 @@ class GroupedQueryAttention(Layer):
             value.shape,
             key.shape if key is not None else None,
         )
-        output_spec = backend.KerasTensor(
-            output_shape, dtype=self.compute_dtype
-        )
+        output_spec = KerasTensor(output_shape, dtype=self.compute_dtype)
         if return_attention_scores:
             query_len = query.shape[1]
             kv_len = value.shape[1] if key is None else key.shape[1]
@@ -641,7 +636,7 @@ class GroupedQueryAttention(Layer):
                 query_len,
                 kv_len,
             )
-            return output_spec, backend.KerasTensor(
+            return output_spec, KerasTensor(
                 scores_shape, dtype=self.compute_dtype
             )
         return output_spec

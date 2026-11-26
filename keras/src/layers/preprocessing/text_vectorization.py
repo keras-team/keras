@@ -2,6 +2,8 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.layers.preprocessing.index_lookup import listify_tensors
 from keras.src.layers.preprocessing.string_lookup import StringLookup
@@ -238,11 +240,11 @@ class TextVectorization(Layer):
                 "Layer TextVectorization requires TensorFlow. "
                 "Install it via `pip install tensorflow`."
             )
-        if sparse and backend.backend() != "tensorflow":
+        if sparse and config.backend() != "tensorflow":
             raise ValueError(
                 "`sparse=True` can only be used with the TensorFlow backend."
             )
-        if ragged and backend.backend() != "tensorflow":
+        if ragged and config.backend() != "tensorflow":
             raise ValueError(
                 "`ragged=True` can only be used with the TensorFlow backend."
             )
@@ -292,27 +294,22 @@ class TextVectorization(Layer):
         )
 
         # 'ngrams' must be one of (None, int, tuple(int))
-        if not (
-            ngrams is None
-            or isinstance(ngrams, int)
-            or isinstance(ngrams, tuple)
-            and all(isinstance(item, int) for item in ngrams)
-        ):
-            raise ValueError(
-                "`ngrams` must be None, an integer, or a tuple of "
-                f"integers. Received: ngrams={ngrams}"
+        if isinstance(ngrams, (list, tuple)):
+            ngrams = tuple(
+                argument_validation.validate_int_sequence("ngrams", ngrams)
+            )
+        else:
+            ngrams = argument_validation.validate_int(
+                "ngrams", ngrams, allow_none=True
             )
 
         # 'output_sequence_length' must be one of (None, int) and is only
         # set if output_mode is "int"".
-        if output_mode == "int" and not (
-            isinstance(output_sequence_length, int)
-            or (output_sequence_length is None)
-        ):
-            raise ValueError(
-                "`output_sequence_length` must be either None or an "
-                "integer when `output_mode` is 'int'. Received: "
-                f"output_sequence_length={output_sequence_length}"
+        if output_mode == "int":
+            output_sequence_length = argument_validation.validate_int(
+                "output_sequence_length",
+                output_sequence_length,
+                allow_none=True,
             )
 
         if output_mode != "int" and output_sequence_length is not None:
@@ -395,8 +392,8 @@ class TextVectorization(Layer):
         if self._output_mode == "int":
             output_dtype = "int64"
         else:
-            output_dtype = backend.floatx()
-        return backend.KerasTensor(output_shape, dtype=output_dtype)
+            output_dtype = config.floatx()
+        return KerasTensor(output_shape, dtype=output_dtype)
 
     def adapt(self, data, batch_size=None, steps=None):
         """Computes a vocabulary of string terms from tokens in a dataset.
@@ -588,10 +585,7 @@ class TextVectorization(Layer):
         ) and backend.ops.is_tensor(inputs):
             inputs = backend.ops.convert_to_numpy(inputs)
         with tf.device("CPU:0"):
-            if (
-                callable(self._standardize)
-                and backend.backend() != "tensorflow"
-            ):
+            if callable(self._standardize) and config.backend() != "tensorflow":
                 # On non-TensorFlow backends, hand the user-provided callable
                 # a NumPy array of unicode strings so it can use `np.char` /
                 # `np.strings` ops rather than `tf.strings` (which would

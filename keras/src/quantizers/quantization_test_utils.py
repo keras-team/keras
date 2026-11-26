@@ -28,25 +28,23 @@ def calibration_config(mode, **kwargs):
 
 
 def calibrate_layer(layer, config, *batches, solve=True):
-    """Calibrates one layer in `config.mode` on `batches` of its inputs.
+    """Calibrates a float layer in `config.mode` on `batches` of its inputs.
 
     This is the only place in the tests that constructs a `Calibrator`.
-    With `solve=True`, a float layer is quantized first, and the
-    calibrator solves for the codes after it observed the batches. With
-    `solve=False`, the layer stays as it is and the calibrator only
-    observes, so a test can read the statistics or solve later.
+    The calibrator observes the batches. With `solve=True`, it then solves
+    for the codes and swaps the float layer for the quantized one in one
+    step. With `solve=False`, the layer stays float and the calibrator
+    only observes, so a test can read the statistics or solve later.
 
     Args:
-        layer: The layer to calibrate.
+        layer: The float layer to calibrate.
         config: The config of a calibration mode.
         *batches: Inputs of the layer, observed in order.
-        solve: Whether to quantize the layer and solve.
+        solve: Whether to solve and quantize the layer.
 
     Returns:
         The calibrator.
     """
-    if solve and layer.quantization_mode is None:
-        layer.quantize(config.mode, config=config)
     strategy = strategy_registry.get_strategy(config.mode)
     calibrator = strategy.calibrator_cls(layer, config)
     for batch in batches:
@@ -54,6 +52,44 @@ def calibrate_layer(layer, config, *batches, solve=True):
     if solve:
         calibrator.quantize()
     return calibrator
+
+
+def calibrate_on_random_rows(layer, config, num_rows=16):
+    """Calibrates a float layer in `config.mode` on random input rows.
+
+    The calibrator observes `num_rows` rows of the contracted features,
+    drawn from a standard normal distribution, and its solve swaps the
+    float layer for the quantized one.
+
+    Args:
+        layer: The float layer to calibrate.
+        config: The config of a calibration mode.
+        num_rows: The number of input rows to observe.
+
+    Returns:
+        The calibrator.
+    """
+    calibrator = calibrate_layer(layer, config, solve=False)
+    rng = np.random.default_rng(0)
+    rows = rng.standard_normal((num_rows, calibrator.rows))
+    calibrator.observe(rows.astype("float32"))
+    calibrator.quantize()
+    return calibrator
+
+
+def assert_calibrated(test, layer, mode):
+    """`layer` holds `mode`'s codes, no float kernel and no config."""
+    test.assertEqual(layer.quantization_mode, mode)
+    test.assertFalse(hasattr(layer, "_kernel"))
+    test.assertIsNone(layer.quantization_config)
+
+
+def assert_float(test, layer):
+    """`layer` is float, with its kernel and no config."""
+    test.assertIsNone(layer.quantization_mode)
+    test.assertFalse(layer._is_quantized)
+    test.assertTrue(hasattr(layer, "_kernel"))
+    test.assertIsNone(layer.quantization_config)
 
 
 def calibration_statistic(calibrator):

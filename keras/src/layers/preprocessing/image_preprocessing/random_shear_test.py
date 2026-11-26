@@ -2,9 +2,9 @@ import numpy as np
 from absl.testing import parameterized
 
 import keras
-from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils import backend_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
@@ -26,6 +26,12 @@ class RandomShearTest(testing.TestCase):
             expected_output_shape=(8, 3, 4, 3),
         )
 
+    def test_config_with_float_factors(self):
+        # A float factor `f` is used as the range `(-f, f)`. `get_config()`
+        # must return a factor that the constructor accepts again.
+        layer = layers.RandomShear(x_factor=0.1, y_factor=0.2, seed=1)
+        self.run_class_serialization_test(layer)
+
     def test_random_posterization_inference(self):
         seed = 3481
         layer = layers.RandomShear(1, 1)
@@ -40,7 +46,7 @@ class RandomShearTest(testing.TestCase):
         image[0, 2, 2, :] = [0.0, 1.0, 0.0]
         image = keras.ops.convert_to_tensor(image, dtype="float32")
 
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_first":
             image = keras.ops.transpose(image, (0, 3, 1, 2))
 
@@ -64,7 +70,7 @@ class RandomShearTest(testing.TestCase):
         self.assertNotAllClose(original_pixel, sheared_pixel)
 
     def test_tf_data_compatibility(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_data = np.random.random((2, 8, 8, 3))
         else:
@@ -93,7 +99,7 @@ class RandomShearTest(testing.TestCase):
         ),
     )
     def test_random_shear_bounding_boxes(self, translation, expected_boxes):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             image_shape = (10, 8, 3)
         else:
@@ -151,8 +157,8 @@ class RandomShearTest(testing.TestCase):
     def test_random_shear_tf_data_bounding_boxes(
         self, translation, expected_boxes
     ):
-        data_format = backend.config.image_data_format()
-        if backend.config.image_data_format() == "channels_last":
+        data_format = config.image_data_format()
+        if data_format == "channels_last":
             image_shape = (1, 10, 8, 3)
         else:
             image_shape = (1, 3, 10, 8)

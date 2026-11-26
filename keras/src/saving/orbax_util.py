@@ -2,7 +2,7 @@
 
 import os
 
-from keras.src import backend
+from keras.src.backend import config
 from keras.src.distribution import distribution as get_distribution
 from keras.src.utils import file_utils
 from keras.src.utils.module_utils import ocp
@@ -78,7 +78,7 @@ def build_orbax_abstract_pytree(checkpoint_path, ref_state=None):
         A pytree of `jax.ShapeDtypeStruct` matching the checkpoint
         structure, or `None` when resharding is not needed.
     """
-    if backend.backend() != "jax":
+    if config.backend() != "jax":
         return None
 
     if get_distribution() is None:

@@ -1,7 +1,8 @@
-from keras.src import backend
 from keras.src import layers
 from keras.src.api_export import keras_export
 from keras.src.applications import imagenet_utils
+from keras.src.backend import config
+from keras.src.backend.common import is_keras_tensor
 from keras.src.models import Functional
 from keras.src.ops import operation_utils
 from keras.src.utils import file_utils
@@ -128,7 +129,7 @@ def ResNet(
         input_shape,
         default_size=224,
         min_size=32,
-        data_format=backend.image_data_format(),
+        data_format=config.image_data_format(),
         require_flatten=include_top,
         weights=weights,
     )
@@ -136,12 +137,12 @@ def ResNet(
     if input_tensor is None:
         img_input = layers.Input(shape=input_shape)
     else:
-        if not backend.is_keras_tensor(input_tensor):
+        if not is_keras_tensor(input_tensor):
             img_input = layers.Input(tensor=input_tensor, shape=input_shape)
         else:
             img_input = input_tensor
 
-    if backend.image_data_format() == "channels_last":
+    if config.image_data_format() == "channels_last":
         bn_axis = 3
     else:
         bn_axis = 1
@@ -234,7 +235,7 @@ def residual_block_v1(
         Output tensor for the residual block.
     """
 
-    if backend.image_data_format() == "channels_last":
+    if config.image_data_format() == "channels_last":
         bn_axis = 3
     else:
         bn_axis = 1
@@ -313,7 +314,7 @@ def residual_block_v2(
         Output tensor for the residual block.
     """
 
-    if backend.image_data_format() == "channels_last":
+    if config.image_data_format() == "channels_last":
         bn_axis = 3
     else:
         bn_axis = 1

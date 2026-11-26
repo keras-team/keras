@@ -3,6 +3,8 @@ import warnings
 
 from keras.src import backend
 from keras.src import initializers
+from keras.src.backend import config
+from keras.src.backend.common import StatelessScope
 from keras.src.optimizers.schedules import learning_rate_schedule
 from keras.src.saving import serialization_lib
 from keras.src.saving.keras_saveable import KerasSaveable
@@ -184,7 +186,7 @@ class BaseOptimizer(KerasSaveable):
                 learning_rate = backend.Variable(
                     learning_rate,
                     name="learning_rate",
-                    dtype=backend.floatx(),
+                    dtype=config.floatx(),
                     trainable=False,
                     aggregation="only_first_replica",
                 )
@@ -264,7 +266,7 @@ class BaseOptimizer(KerasSaveable):
                 variable value, or string name of a built-in initializer
                 (e.g. `"random_normal"`). Defaults to `"zeros"`.
             dtype: Dtype of the variable to create, e.g. `"float32"`. If
-                unspecified, defaults to the `keras.backend.floatx()`.
+                unspecified, defaults to the `keras.config.floatx()`.
             aggregation: Optional string, one of `None`, `"none"`, `"mean"`,
                 `"sum"` or `"only_first_replica"`. Annotates the variable with
                 the type of multi-replica aggregation to be used for this
@@ -679,7 +681,7 @@ class BaseOptimizer(KerasSaveable):
         ) + list(zip(self.variables, optimizer_variables))
 
         # Call in stateless scope
-        with backend.StatelessScope(state_mapping=mapping) as scope:
+        with StatelessScope(state_mapping=mapping) as scope:
             self.apply(grads)
 
         # Gather updated variables

@@ -67,9 +67,9 @@ class Zeros(Initializer):
         Args:
             shape: Shape of the tensor.
             dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
-                are supported. If not specified, `keras.backend.floatx()`
+                are supported. If not specified, `keras.config.floatx()`
                 is used, which default to `float32` unless you configured it
-                otherwise (via `keras.backend.set_floatx(float_dtype)`).
+                otherwise (via `keras.config.set_floatx(float_dtype)`).
         """
         dtype = standardize_dtype(dtype)
         return ops.zeros(shape, dtype=dtype)
@@ -98,9 +98,9 @@ class Ones(Initializer):
         Args:
             shape: Shape of the tensor.
             dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
-                are supported. If not specified, `keras.backend.floatx()`
+                are supported. If not specified, `keras.config.floatx()`
                 is used, which default to `float32` unless you configured it
-                otherwise (via `keras.backend.set_floatx(float_dtype)`).
+                otherwise (via `keras.config.set_floatx(float_dtype)`).
         """
         dtype = standardize_dtype(dtype)
         return ops.ones(shape, dtype=dtype)
@@ -141,9 +141,9 @@ class Identity(Initializer):
         Args:
             shape: Shape of the tensor.
             dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
-                are supported. If not specified, `keras.backend.floatx()`
+                are supported. If not specified, `keras.config.floatx()`
                 is used, which default to `float32` unless you configured it
-                otherwise (via `keras.backend.set_floatx(float_dtype)`).
+                otherwise (via `keras.config.set_floatx(float_dtype)`).
         """
         if len(shape) != 2:
             raise ValueError(
@@ -228,9 +228,9 @@ class STFT(Initializer):
         Args:
             shape: Shape of the tensor.
             dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
-                are supported. If not specified, `keras.backend.floatx()`
+                are supported. If not specified, `keras.config.floatx()`
                 is used, which default to `float32` unless you configured it
-                otherwise (via `keras.backend.set_floatx(float_dtype)`).
+                otherwise (via `keras.config.set_floatx(float_dtype)`).
         """
         dtype = standardize_dtype(dtype)
         frame_length, input_channels, fft_length = shape

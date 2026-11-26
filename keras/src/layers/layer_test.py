@@ -14,6 +14,8 @@ from keras.src import models
 from keras.src import ops
 from keras.src import random
 from keras.src import testing
+from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import global_state
 from keras.src.backend.common import set_keras_mask
@@ -53,7 +55,7 @@ class LayerTest(testing.TestCase):
 
         layer = TestLayer()
         self.assertEqual(
-            layer.compute_output_spec(backend.KerasTensor((2, 3))).shape, (2, 3)
+            layer.compute_output_spec(KerasTensor((2, 3))).shape, (2, 3)
         )
 
         # Case: tuple output
@@ -65,7 +67,7 @@ class LayerTest(testing.TestCase):
                 return (input_shape, input_shape)
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, tuple)
         self.assertEqual(len(out), 2)
         self.assertEqual(out[0].shape, (2, 3))
@@ -80,7 +82,7 @@ class LayerTest(testing.TestCase):
                 return [input_shape, input_shape]
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, list)
         self.assertEqual(len(out), 2)
         self.assertEqual(out[0].shape, (2, 3))
@@ -95,7 +97,7 @@ class LayerTest(testing.TestCase):
                 return {"1": input_shape, "2": input_shape}
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, dict)
         self.assertEqual(len(out), 2)
         self.assertEqual(out["1"].shape, (2, 3))
@@ -114,7 +116,7 @@ class LayerTest(testing.TestCase):
                 )
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, tuple)
         self.assertEqual(len(out), 3)
         self.assertEqual(out[0].shape, (2, 3))
@@ -139,7 +141,7 @@ class LayerTest(testing.TestCase):
                 }
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, dict)
         self.assertEqual(len(out), 2)
         self.assertEqual(out["1"].shape, (2, 3))
@@ -155,7 +157,7 @@ class LayerTest(testing.TestCase):
                     return x
                 return x + 1
 
-        x = backend.KerasTensor(shape=(2, 3), name="x")
+        x = KerasTensor(shape=(2, 3), name="x")
         with self.assertRaisesRegex(
             ValueError, "Only input tensors may be passed as"
         ):
@@ -238,7 +240,7 @@ class LayerTest(testing.TestCase):
         self.assertAllClose(layer(inputs, training=training), inputs)
 
     @parameterized.parameters("full", "list_of_layers", "larger_than")
-    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX-specific test")
+    @pytest.mark.skipif(config.backend() != "jax", reason="JAX-specific test")
     def test_remat_nested_training_gradients(self, mode):
         import jax
 
@@ -582,7 +584,7 @@ class LayerTest(testing.TestCase):
                 return self.dense1(x)
 
         layer = LayerWithUnbuiltState(2)
-        layer(backend.KerasTensor((3, 4)))
+        layer(KerasTensor((3, 4)))
         self.assertLen(layer.weights, 2)
 
         class KwargsLayerWithUnbuiltState(layers.Layer):
@@ -595,11 +597,11 @@ class LayerTest(testing.TestCase):
                 return self.dense1(x1) + self.dense2(x2)
 
         layer = KwargsLayerWithUnbuiltState(2)
-        layer(backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4)))
+        layer(KerasTensor((3, 4)), KerasTensor((3, 4)))
         self.assertLen(layer.weights, 4)
 
         layer = KwargsLayerWithUnbuiltState(2)
-        layer(x1=backend.KerasTensor((3, 4)), x2=backend.KerasTensor((3, 4)))
+        layer(x1=KerasTensor((3, 4)), x2=KerasTensor((3, 4)))
         self.assertLen(layer.weights, 4)
 
         class DictLayerWithUnbuiltState(layers.Layer):
@@ -616,14 +618,14 @@ class LayerTest(testing.TestCase):
         layer = DictLayerWithUnbuiltState(2)
         layer(
             {
-                "x1": backend.KerasTensor((3, 4)),
-                "x2": backend.KerasTensor((3, 4)),
+                "x1": KerasTensor((3, 4)),
+                "x2": KerasTensor((3, 4)),
             }
         )
         self.assertLen(layer.weights, 2)
 
         layer = DictLayerWithUnbuiltState(2)
-        layer({"x1": backend.KerasTensor((3, 4)), "x2": None})
+        layer({"x1": KerasTensor((3, 4)), "x2": None})
         self.assertLen(layer.weights, 2)
 
         class ListLayerWithUnbuiltState(layers.Layer):
@@ -638,11 +640,11 @@ class LayerTest(testing.TestCase):
                 return result
 
         layer = ListLayerWithUnbuiltState(2)
-        layer([backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))])
+        layer([KerasTensor((3, 4)), KerasTensor((3, 4))])
         self.assertLen(layer.weights, 2)
 
         layer = ListLayerWithUnbuiltState(2)
-        layer([backend.KerasTensor((3, 4)), None])
+        layer([KerasTensor((3, 4)), None])
         self.assertLen(layer.weights, 2)
 
     def test_activity_regularization(self):
@@ -711,7 +713,7 @@ class LayerTest(testing.TestCase):
         self.assertLen(model.losses, 1)
         self.assertAllClose(model.losses[0], 1.0)
 
-    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    @pytest.mark.skipif(config.backend() != "torch", reason="Torch only test.")
     def test_add_loss_torch_compile_does_not_recompile(self):
         import torch
         from torch._dynamo.utils import counters
@@ -847,7 +849,7 @@ class LayerTest(testing.TestCase):
         self.assertEqual(ops.min(layer(x, training=True)), 0)
 
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        config.backend() == "torch",
         reason="Some torch ops not implemented for float16 on CPU.",
     )
     def test_mixed_precision(self):
@@ -867,7 +869,7 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.kernel.dtype, "float32")
 
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        config.backend() == "torch",
         reason="Some torch ops not implemented for float16 on CPU.",
     )
     def test_autocast(self):
@@ -988,7 +990,7 @@ class LayerTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() == "numpy",
+        config.backend() == "numpy",
         reason="compute_output_spec not supported with numpy",
     )
     def test_end_to_end_masking(self):
@@ -1664,7 +1666,7 @@ class LayerTest(testing.TestCase):
         variable_paths = set(v.path for v in layer.variables)
         self.assertTrue("inner_layer/inner" in variable_paths)
         self.assertTrue("inner_inner_layer/inner" in variable_paths)
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             parameter_names = set(
                 param_name.replace("_torch_params.", "")
                 for param_name, _ in layer.named_parameters()
@@ -1709,7 +1711,7 @@ class LayerTest(testing.TestCase):
 
         layer = TrainingLayer()
         output = layer(
-            backend.KerasTensor(
+            KerasTensor(
                 (4, 1),
             )
         )
@@ -1721,7 +1723,7 @@ class LayerTest(testing.TestCase):
             "training_layer/inner_layer/inner_inner_layer/inner"
             in variable_paths
         )
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             parameter_names = set(
                 param_name.replace("_torch_params.", "")
                 for param_name, _ in layer.named_parameters()
@@ -1762,7 +1764,7 @@ class LayerTest(testing.TestCase):
                 self._tracker.lock()
 
         layer = TrainingLayer()
-        output = layer(backend.KerasTensor((4, 2)))
+        output = layer(KerasTensor((4, 2)))
 
         self.assertEqual(output.shape, (4, 2))
         self.assertEqual(len(layer.variables), 1)
@@ -1770,7 +1772,7 @@ class LayerTest(testing.TestCase):
             layer.variables[0].path,
             "training_layer/post_build_modify_layer/var",
         )
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             parameter_names = [pname for pname, _ in layer.named_parameters()]
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
@@ -1788,7 +1790,7 @@ class LayerTest(testing.TestCase):
             layer.variables[1].path,
             "training_layer/post_build_modify_layer/var2",
         )
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             # TODO (haohuanw, fchollet): Needs further discussion on how to
             # properly manage torch params. Post build modification cannot
             # propagate to parent torch params.
@@ -1820,7 +1822,7 @@ class LayerTest(testing.TestCase):
             layer.variables[0].path,
             "training_layer/post_build_modify_layer/var2",
         )
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             # TODO (haohuanw, fchollet): Needs further discussion on how to
             # properly manage torch params. Post build modification cannot
             # propagate to parent torch params.
@@ -1848,7 +1850,7 @@ class LayerTest(testing.TestCase):
                 "_torch_params.training_layer/post_build_modify_layer/var2",
             )
 
-    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    @pytest.mark.skipif(config.backend() != "torch", reason="Torch only test.")
     def test_torch_params_create_deterministic(self):
         class MyLayer(layers.Layer):
             def __init__(self):
@@ -1872,7 +1874,7 @@ class LayerTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
-        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+        reason=f"{config.backend()} backend doesn't support complex dtypes.",
     )
     def test_complex_dtype_support(self):
         class MyDenseLayer(layers.Layer):

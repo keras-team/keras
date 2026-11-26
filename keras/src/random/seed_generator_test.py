@@ -5,6 +5,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import random
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
 from keras.src.random import seed_generator
 
@@ -19,7 +20,7 @@ class SeedGeneratorTest(testing.TestCase):
         self.assertEqual(ops.convert_to_numpy(gen.state)[0], seed)
 
         with self.assertRaisesRegex(
-            ValueError, "Argument `seed` must be an integer"
+            TypeError, "Expected `seed` to be an integer or `None`"
         ):
             seed_generator.SeedGenerator(seed="invalid_seed")
 
@@ -41,12 +42,12 @@ class SeedGeneratorTest(testing.TestCase):
 
     def test_seed_generator_dtype(self):
         gen = seed_generator.SeedGenerator(seed=42)
-        self.assertEqual(gen.state.dtype, backend.ops.random_seed_dtype())
+        self.assertEqual(gen.state.dtype, backend.random.seed_dtype())
         seed = gen.next()
-        self.assertEqual(gen.state.dtype, backend.ops.random_seed_dtype())
+        self.assertEqual(gen.state.dtype, backend.random.seed_dtype())
         self.assertEqual(
             standardize_dtype(seed.dtype),
-            backend.ops.random_seed_dtype(),
+            backend.random.seed_dtype(),
         )
 
     def test_draw_seed_from_seed_generator(self):
@@ -59,7 +60,7 @@ class SeedGeneratorTest(testing.TestCase):
         self.assertTrue(backend.ops.is_tensor(seed2))
         self.assertEqual(
             standardize_dtype(seed2.dtype),
-            backend.ops.random_seed_dtype(),
+            backend.random.seed_dtype(),
         )
 
     def test_draw_seed_from_large_integer(self):
@@ -70,7 +71,7 @@ class SeedGeneratorTest(testing.TestCase):
             self.assertTrue(backend.ops.is_tensor(seed))
             self.assertEqual(
                 standardize_dtype(seed.dtype),
-                backend.ops.random_seed_dtype(),
+                backend.random.seed_dtype(),
             )
             # Verify the seed can be consumed by a random op without error.
             res = random.uniform((2, 2), seed=s)
@@ -93,7 +94,7 @@ class SeedGeneratorTest(testing.TestCase):
             seed_generator.SeedGenerator(invalid_arg="unexpected_value")
 
     @pytest.mark.skipif(
-        backend.backend() != "jax", reason="This test requires the JAX backend"
+        config.backend() != "jax", reason="This test requires the JAX backend"
     )
     def test_jax_tracing_with_global_seed_generator(self):
         import jax
@@ -111,3 +112,14 @@ class SeedGeneratorTest(testing.TestCase):
     def test_seed_generator_serialization(self):
         random_generator = seed_generator.SeedGenerator(seed=42, name="sg")
         self.run_class_serialization_test(random_generator)
+
+    def test_numpy_integer_seed(self):
+        gen = seed_generator.SeedGenerator(seed=np.int64(42))
+        self.assertIs(type(gen.get_config()["seed"]), int)
+        self.assertAllEqual(
+            gen.state, seed_generator.SeedGenerator(seed=42).state
+        )
+        self.assertAllEqual(
+            seed_generator.draw_seed(np.int64(42)),
+            seed_generator.draw_seed(42),
+        )

@@ -3,9 +3,10 @@ import pytest
 from absl.testing import parameterized
 
 import keras
-from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
+from keras.src.backend.common import StatelessScope
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
 from keras.src.random import random
@@ -81,7 +82,7 @@ class RandomCorrectnessTest(testing.TestCase):
         self.assertLessEqual(ops.max(res), max)
         self.assertGreaterEqual(ops.max(res), min)
         # Torch has incomplete dtype support for uints; will remap some dtypes.
-        if keras.backend.backend() != "torch":
+        if config.backend() != "torch":
             self.assertEqual(standardize_dtype(res.dtype), dtype)
 
     def test_randint_wide_range(self):
@@ -146,7 +147,7 @@ class RandomCorrectnessTest(testing.TestCase):
             y = random.normal((), seed=None)
             return x, y, rng_state.value
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             random_numbers = tf.function(jit_compile=True)(random_numbers)
@@ -400,7 +401,7 @@ class RandomBehaviorTest(testing.TestCase):
             random.uniform((3, 4), minval=0, maxval=10, dtype="int64")
 
     @pytest.mark.skipif(
-        keras.backend.backend() != "jax",
+        config.backend() != "jax",
         reason="This test requires `jax` as the backend.",
     )
     def test_dropout_jax_jit_stateless(self):
@@ -411,7 +412,7 @@ class RandomBehaviorTest(testing.TestCase):
 
         @jax.jit
         def train_step(x):
-            with keras.src.backend.StatelessScope():
+            with StatelessScope():
                 x = keras.layers.Dropout(rate=0.1)(x, training=True)
             return x
 
@@ -419,7 +420,7 @@ class RandomBehaviorTest(testing.TestCase):
         self.assertIsInstance(x, jnp.ndarray)
 
     @pytest.mark.skipif(
-        keras.backend.backend() != "jax",
+        config.backend() != "jax",
         reason="This test requires `jax` as the backend.",
     )
     def test_jax_rngkey_seed(self):
@@ -434,7 +435,7 @@ class RandomBehaviorTest(testing.TestCase):
         self.assertIsInstance(x, jnp.ndarray)
 
     @pytest.mark.skipif(
-        keras.backend.backend() != "jax",
+        config.backend() != "jax",
         reason="This test requires `jax` as the backend.",
     )
     def test_jax_unseed_disallowed_during_tracing(self):
@@ -450,7 +451,7 @@ class RandomBehaviorTest(testing.TestCase):
             jit_fn()
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="This test requires `tensorflow` as the backend.",
     )
     def test_tf_cast_seed(self):
@@ -468,7 +469,7 @@ class RandomDTypeTest(testing.TestCase):
 
     INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))

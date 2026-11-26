@@ -2,9 +2,7 @@ import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
 
-from keras.src.backend import config
 from keras.src.backend.common import dtypes
-from keras.src.backend.common import standardize_dtype
 from keras.src.backend.jax.ops.core import cast
 from keras.src.backend.jax.ops.core import convert_to_tensor
 
@@ -65,11 +63,7 @@ def norm(x, ord=None, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if isinstance(axis, list):
         axis = tuple(axis)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
-    x = cast(x, dtype)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
 
 

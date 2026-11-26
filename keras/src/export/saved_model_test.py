@@ -14,6 +14,8 @@ from keras.src import ops
 from keras.src import random
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
 from keras.src.export import saved_model
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
@@ -49,7 +51,7 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
 
 
 @pytest.mark.skipif(
-    backend.backend() not in ("tensorflow", "jax", "torch"),
+    config.backend() not in ("tensorflow", "jax", "torch"),
     reason=(
         "`export_saved_model` only currently supports the tensorflow, jax and "
         "torch backends."
@@ -59,7 +61,7 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
     testing.torch_uses_gpu(), reason="Leads to core dumps on CI"
 )
 @pytest.mark.skipif(
-    backend.backend() == "torch" and np.version.version.startswith("2."),
+    config.backend() == "torch" and np.version.version.startswith("2."),
     reason="Torch backend export (via torch_xla) is incompatible with np 2.0",
 )
 class ExportSavedModelTest(testing.TestCase):
@@ -85,7 +87,7 @@ class ExportSavedModelTest(testing.TestCase):
     def test_standard_model_export(self, model_type):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model(model_type)
-        batch_size = 3 if backend.backend() != "torch" else 1
+        batch_size = 3 if config.backend() != "torch" else 1
         ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input)
 
@@ -106,7 +108,7 @@ class ExportSavedModelTest(testing.TestCase):
         named_product(model_type=["sequential", "functional", "subclass"])
     )
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        config.backend() == "torch",
         reason=(
             "RuntimeError: mutating a non-functional tensor with a "
             "functional tensor is not allowed in the torch backend."
@@ -144,7 +146,7 @@ class ExportSavedModelTest(testing.TestCase):
         named_product(model_type=["sequential", "functional", "subclass"])
     )
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        config.backend() == "torch",
         reason=(
             "RuntimeError: mutating a non-functional tensor with a "
             "functional tensor is not allowed in the torch backend."
@@ -186,7 +188,7 @@ class ExportSavedModelTest(testing.TestCase):
     def test_model_with_tf_data_layer(self, model_type):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model(model_type, layer_list=[layers.Rescaling(scale=2.0)])
-        batch_size = 3 if backend.backend() != "torch" else 1
+        batch_size = 3 if config.backend() != "torch" else 1
         ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input)
 
@@ -224,7 +226,7 @@ class ExportSavedModelTest(testing.TestCase):
                 y = inputs["y"]
                 return ops.add(x, y)
 
-        batch_size = 3 if backend.backend() != "torch" else 1
+        batch_size = 3 if config.backend() != "torch" else 1
         ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
         if struct_type == "tuple":
             model = TupleModel()
@@ -286,7 +288,7 @@ class ExportSavedModelTest(testing.TestCase):
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = TwoInputsModel()
-        batch_size = 3 if backend.backend() != "torch" else 1
+        batch_size = 3 if config.backend() != "torch" else 1
         ref_input_x = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_input_y = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input_x, ref_input_y)
@@ -314,7 +316,7 @@ class ExportSavedModelTest(testing.TestCase):
                     dtype="float32", shape=(None, 10), name="inputs"
                 ),
                 tf.TensorSpec((None, 10), dtype="float32", name="inputs"),
-                backend.KerasTensor((None, 10), dtype="float32", name="inputs"),
+                KerasTensor((None, 10), dtype="float32", name="inputs"),
                 "backend_tensor",
             ],
         )
@@ -322,7 +324,7 @@ class ExportSavedModelTest(testing.TestCase):
     def test_input_signature(self, model_type, input_signature):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model(model_type)
-        batch_size = 3 if backend.backend() != "torch" else 1
+        batch_size = 3 if config.backend() != "torch" else 1
         ref_input = random.normal((batch_size, 10))
         ref_output = model(ref_input)
 
@@ -364,7 +366,7 @@ class ExportSavedModelTest(testing.TestCase):
         )
     )
     @pytest.mark.skipif(
-        backend.backend() != "jax",
+        config.backend() != "jax",
         reason="This test is only for the jax backend.",
     )
     def test_jax_specific_kwargs(self, model_type, is_static, jax2tf_kwargs):
@@ -393,7 +395,7 @@ class ExportSavedModelTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend()
+    config.backend()
     not in (
         "tensorflow",
         "jax",
@@ -564,7 +566,7 @@ class ExportArchiveTest(testing.TestCase):
         revived_model.call([tf.random.normal((6, 3)), tf.random.normal((6, 5))])
 
     @pytest.mark.skipif(
-        backend.backend() != "jax",
+        config.backend() != "jax",
         reason="This test is only for the JAX backend.",
     )
     def test_low_level_model_export_with_jax2tf_kwargs(self):
@@ -585,7 +587,7 @@ class ExportArchiveTest(testing.TestCase):
             )
 
     @pytest.mark.skipif(
-        backend.backend() != "jax",
+        config.backend() != "jax",
         reason="This test is only for the JAX backend.",
     )
     def test_low_level_model_export_with_jax2tf_polymorphic_shapes(self):
@@ -636,7 +638,7 @@ class ExportArchiveTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="This test is native to the TF backend.",
     )
     def test_endpoint_registration_tf_function(self):
@@ -675,7 +677,7 @@ class ExportArchiveTest(testing.TestCase):
         self.assertLen(revived_model.non_trainable_variables, 2)
 
     @pytest.mark.skipif(
-        backend.backend() != "jax",
+        config.backend() != "jax",
         reason="This test is native to the JAX backend.",
     )
     def test_jax_endpoint_registration_tf_function(self):
@@ -741,7 +743,7 @@ class ExportArchiveTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "jax",
+        config.backend() != "jax",
         reason="This test is native to the JAX backend.",
     )
     def test_jax_multi_unknown_endpoint_registration(self):
@@ -905,7 +907,7 @@ class ExportArchiveTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="String lookup requires TensorFlow backend",
     )
     def test_model_with_lookup_table(self):
@@ -930,7 +932,7 @@ class ExportArchiveTest(testing.TestCase):
         self.assertAllClose(revived_model.serve(ref_input), ref_output)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="String lookup requires TensorFlow backend",
     )
     def test_model_with_tracked_collection(self):

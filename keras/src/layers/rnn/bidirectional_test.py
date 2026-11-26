@@ -1,9 +1,9 @@
 import numpy as np
 
-from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 
 
 class SimpleRNNTest(testing.TestCase):
@@ -554,7 +554,7 @@ class SimpleRNNTest(testing.TestCase):
         # two-pass fallback while every existing test still passes.
         # Assert that `torch._VF.gru` actually fires when the layer runs
         # against cuDNN-eligible inputs on CUDA.
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.skipTest("Guards the torch-backend cuDNN dispatch path.")
 
         import torch

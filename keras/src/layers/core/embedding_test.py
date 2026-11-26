@@ -14,6 +14,7 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
 from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.gptq_config import GPTQConfig
@@ -145,16 +146,16 @@ class EmbeddingTest(test_case.TestCase):
         layer.build()
         layer.embeddings.assign(np.array([[0.0, 0.0], [2.0, 2.0], [3.0, 3.0]]))
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             x = tf.SparseTensor([[0, 0], [1, 2]], [2, 1], (2, 3))
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             x = jax_sparse.BCOO(([2, 1], [[0, 0], [1, 2]]), shape=(2, 3))
         else:
-            self.fail(f"Sparse is unsupported with backend {backend.backend()}")
+            self.fail(f"Sparse is unsupported with backend {config.backend()}")
 
         self.assertAllClose(
             layer(x),
@@ -184,24 +185,34 @@ class EmbeddingTest(test_case.TestCase):
         self.assertIsInstance(layer.embeddings.constraint, constraints.NonNeg)
 
     def test_invalid_input_dim(self):
-        for bad_value in (3.7, 4.0, "3", None, True, False, -1, 0):
+        for bad_value in (3.7, 4.0, "3", None, True, False):
             with self.assertRaisesRegex(
-                ValueError, "`input_dim` must be a positive integer"
+                TypeError, "Expected `input_dim` to be an integer"
+            ):
+                layers.Embedding(input_dim=bad_value, output_dim=8)
+        for bad_value in (-1, 0):
+            with self.assertRaisesRegex(
+                ValueError, "Expected `input_dim` to be an integer >= 1"
             ):
                 layers.Embedding(input_dim=bad_value, output_dim=8)
         with self.assertRaisesRegex(
-            TypeError, "`input_dim` must be a positive integer"
+            TypeError, "Expected `input_dim` to be an integer"
         ):
             layers.Embedding.from_config({"input_dim": 3.7, "output_dim": 8})
 
     def test_invalid_output_dim(self):
-        for bad_value in (3.7, 4.0, "3", None, True, False, -1, 0):
+        for bad_value in (3.7, 4.0, "3", None, True, False):
             with self.assertRaisesRegex(
-                ValueError, "`output_dim` must be a positive integer"
+                TypeError, "Expected `output_dim` to be an integer"
+            ):
+                layers.Embedding(input_dim=10, output_dim=bad_value)
+        for bad_value in (-1, 0):
+            with self.assertRaisesRegex(
+                ValueError, "Expected `output_dim` to be an integer >= 1"
             ):
                 layers.Embedding(input_dim=10, output_dim=bad_value)
         with self.assertRaisesRegex(
-            TypeError, "`output_dim` must be a positive integer"
+            TypeError, "Expected `output_dim` to be an integer"
         ):
             layers.Embedding.from_config({"input_dim": 10, "output_dim": 3.7})
 
@@ -218,7 +229,7 @@ class EmbeddingTest(test_case.TestCase):
         layer.enable_lora(4)
         self.assertLen(layer.trainable_weights, 2)
         self.assertLen(layer.non_trainable_weights, 1)
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             self.assertLen(layer.torch_params, 3)
         self.assertDType(layer.lora_embeddings_a, "float32")
         self.assertDType(layer.lora_embeddings_b, "float32")
@@ -609,7 +620,7 @@ class EmbeddingTest(test_case.TestCase):
         layer.quantize(mode)
         self.assertLen(layer.trainable_weights, num_trainable_weights)
         self.assertLen(layer.non_trainable_weights, num_non_trainable_weights)
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             self.assertLen(layer.torch_params, num_torch_params)
 
         # Try calling fit()
@@ -660,7 +671,7 @@ class EmbeddingTest(test_case.TestCase):
         self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
 
         # Test export and TFSMLayer reloading when using tensorflow backend
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -1152,3 +1163,9 @@ class EmbeddingTest(test_case.TestCase):
 
         x = np.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
         self.assertEqual(tuple(layer(x).shape), (2, 3, output_dim))
+
+    def test_numpy_integer_dims(self):
+        layer = layers.Embedding(np.int64(10), np.int64(4))
+        self.assertIs(type(layer.input_dim), int)
+        self.assertIs(type(layer.output_dim), int)
+        self.assertEqual((layer.input_dim, layer.output_dim), (10, 4))

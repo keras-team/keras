@@ -183,7 +183,7 @@ def x64_mode_scope(mode):
     # Keras mode when `set_x64_mode` reconciles the two.
     previous_mode = config.x64_mode()
     try:
-        with _jax_explicit_x64_scope(mode == "explicit_x64"):
+        with jax_x64_scope(mode):
             config.set_x64_mode(mode)
             yield
     finally:
@@ -191,13 +191,22 @@ def x64_mode_scope(mode):
 
 
 @contextlib.contextmanager
-def _jax_explicit_x64_scope(allow):
-    """Sets `jax_explicit_x64_dtypes` for the block, if JAX is installed."""
+def jax_x64_scope(mode):
+    """Sets `jax_explicit_x64_dtypes` for the block, if JAX is installed.
+
+    The op tests run their JAX reference in it, so the reference follows
+    `keras.config.x64_mode()` on every backend.
+
+    Args:
+        mode: `"off"` or `"explicit_x64"`.
+    """
     if not jax.available:
         yield
         return
     previous = jax.config.jax_explicit_x64_dtypes
-    jax.config.update("jax_explicit_x64_dtypes", "allow" if allow else "warn")
+    jax.config.update(
+        "jax_explicit_x64_dtypes", "allow" if mode == "explicit_x64" else "warn"
+    )
     try:
         yield
     finally:

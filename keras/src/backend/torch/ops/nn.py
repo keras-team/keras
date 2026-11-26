@@ -5,9 +5,11 @@ import torch.nn.functional as tnn
 from torch.distributed.tensor import DTensor
 from torch.distributed.tensor import Replicate
 
-from keras.src import backend
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import result_type
+from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
@@ -35,6 +37,7 @@ def relu6(x):
 
 def sigmoid(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return tnn.sigmoid(x)
 
 
@@ -71,6 +74,9 @@ def softplus(x):
 
 def softsign(x):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.softsign(x)
 
 
@@ -101,6 +107,9 @@ def silu(x):
 
 def squareplus(x, b=4):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     b = convert_to_tensor(b)
     y = x + torch.sqrt(x**2 + b)
     return y / 2
@@ -176,6 +185,9 @@ def hard_tanh(x):
 
 def hard_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.hardshrink(x, lambd=threshold)
 
 
@@ -186,6 +198,7 @@ def threshold(x, threshold, default_value):
 
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     dtype = standardize_dtype(x.dtype)
     # TODO: tnn.softmax doesn't support float16 using cpu
     if get_device() == "cpu" and dtype == "float16":
@@ -203,6 +216,7 @@ def softmax(x, axis=-1):
 
 def log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     dtype = standardize_dtype(x.dtype)
     # TODO: tnn.log_softmax doesn't support float16 using cpu
     if get_device() == "cpu" and dtype == "float16":
@@ -431,7 +445,7 @@ def max_pool(
     else:
         strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(
             inputs, channels_last_memory_format=True
@@ -496,7 +510,7 @@ def average_pool(
         else standardize_tuple(strides, num_spatial_dims, "strides")
     )
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     orig_format = data_format
 
     if data_format == "channels_last":
@@ -600,7 +614,7 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
     inputs = convert_to_tensor(inputs)
     num_spatial_dims = inputs.ndim - 2
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     orig_format = data_format
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(
@@ -645,7 +659,7 @@ def adaptive_max_pool(inputs, output_size, data_format=None):
     inputs = convert_to_tensor(inputs)
     num_spatial_dims = inputs.ndim - 2
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     orig_format = data_format
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
@@ -699,7 +713,7 @@ def conv(
     num_spatial_dims = inputs.ndim - 2
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     # Fast path for pointwise channels_last conv: matmul avoids the
     # channels_first transpose and torch conv dispatch.
     if (
@@ -791,7 +805,7 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     check_conv_input_channels(inputs, kernel, data_format)
@@ -810,7 +824,7 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     depthwise_kernel = convert_to_tensor(depthwise_kernel)
     pointwise_kernel = convert_to_tensor(pointwise_kernel)
@@ -847,7 +861,7 @@ def conv_transpose(
     num_spatial_dims = inputs.ndim - 2
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     check_conv_transpose_input_channels(inputs, kernel, data_format)
 
     # Torch's `conv_transpose*d` only takes a symmetric `padding` plus a
@@ -995,7 +1009,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = tnn.log_softmax(output, dim=axis)
     else:
         output = output / torch.sum(output, dim=axis, keepdim=True)
-        output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = torch.clip(output, config.epsilon(), 1.0 - config.epsilon())
         log_prob = torch.log(output)
     return -torch.sum(target * log_prob, dim=axis)
 
@@ -1040,7 +1054,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         result = tnn.cross_entropy(output, target, reduction="none")
     else:
         output = output / torch.sum(output, dim=1, keepdim=True)
-        output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = torch.clip(output, config.epsilon(), 1.0 - config.epsilon())
         log_prob = torch.log(output)
         result = tnn.nll_loss(log_prob, target, reduction="none")
 
@@ -1053,7 +1067,7 @@ def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
     if not is_float_dtype(output.dtype):
-        output = cast(output, backend.floatx())
+        output = cast(output, config.floatx())
     target = cast(target, output.dtype)
 
     if target.shape != output.shape:
@@ -1070,7 +1084,7 @@ def binary_crossentropy(target, output, from_logits=False):
             output, target, reduction="none"
         )
 
-    output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    output = torch.clip(output, config.epsilon(), 1.0 - config.epsilon())
     # Before torch 2.10, the MPS `binary_cross_entropy` kernel squeezes every
     # size-1 dimension of its inputs but not of `grad_output`, so the backward
     # pass aborts or returns wrong gradients. Computing the loss on 1-D
@@ -1087,6 +1101,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
         raise NotImplementedError(
             "Argument synchronized=True is not supported with PyTorch."
         )
+    axes = tuple(axes) if isinstance(axes, list) else axes
     x = convert_to_tensor(x)
     # The dynamic range of float16 is too limited for statistics. As a
     # workaround, we simply perform the operations on float32 and convert back
@@ -1098,14 +1113,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
         x = cast(x, "float32")
 
     mean = torch.mean(x, dim=axes, keepdim=True)
-
-    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
-    # but less numerically stable.
-    # Note: stop_gradient does not change the gradient to the mean, because that
-    # gradient is zero.
-    variance = torch.mean(
-        torch.square(x), dim=axes, keepdim=True
-    ) - torch.square(mean)
+    variance = torch.var(x, dim=axes, keepdim=True, correction=0)
 
     if not keepdims:
         mean = torch.squeeze(mean, axes)
@@ -1164,7 +1172,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     output_length = convert_to_tensor(output_length)
 
     # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
-    dtype = backend.result_type(output.dtype, "float32")
+    dtype = result_type(output.dtype, "float32")
     output = cast(output, dtype)
 
     output = torch.transpose(output, 1, 0)
@@ -1461,7 +1469,7 @@ def ctc_decode(
     mask_index=0,
 ):
     inputs = convert_to_tensor(inputs)
-    dtype = backend.result_type(inputs.dtype, "float32")
+    dtype = result_type(inputs.dtype, "float32")
     inputs = cast(inputs, dtype)
 
     if strategy == "greedy":
@@ -1608,7 +1616,7 @@ def dot_product_attention(
         raise ValueError(
             "Only one of `bias` and `mask` can be provided. Received both."
         )
-    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+    compute_dtype = result_type(query.dtype, key.dtype, value.dtype)
     query = cast(query, compute_dtype)
     key = cast(key, compute_dtype)
     value = cast(value, compute_dtype)
@@ -1876,7 +1884,7 @@ def _inverse_permutation(perm):
 
 def rms_normalization(x, scale=None, axis=-1, epsilon=None):
     if epsilon is None:
-        epsilon = backend.epsilon()
+        epsilon = config.epsilon()
     if x.dim() == 0:
         # A scalar is normalized as a single element, like the composed op.
         x = x.unsqueeze(0)
@@ -1897,7 +1905,7 @@ def rms_normalization(x, scale=None, axis=-1, epsilon=None):
 
 def layer_normalization(x, gamma=None, beta=None, axis=-1, epsilon=None):
     if epsilon is None:
-        epsilon = backend.epsilon()
+        epsilon = config.epsilon()
     axis = _canonical_axes(x, axis)
     operands = _normalization_operands(x, (gamma, beta), axis) if axis else None
     if operands is None:

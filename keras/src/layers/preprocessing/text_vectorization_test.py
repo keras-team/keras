@@ -13,6 +13,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.trainers.data_adapters import py_dataset_adapter
 
 
@@ -108,7 +109,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(output, np.array([[4, 1, 3, 0], [1, 2, 0, 0]]))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Requires string input dtype"
+        config.backend() != "tensorflow", reason="Requires string input dtype"
     )
     def test_save_load_with_ngrams_flow(self):
         input_data = np.array(["foo bar", "bar baz", "baz bada boom"])
@@ -126,7 +127,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(output, model(input_data))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Requires string input dtype"
+        config.backend() != "tensorflow", reason="Requires string input dtype"
     )
     def test_save_load_tf_idf_mode(self):
         input_data = np.array(["foo bar", "bar baz", "baz bada boom"])
@@ -201,7 +202,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         next(iter(ds))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Requires string tensors."
+        config.backend() != "tensorflow", reason="Requires string tensors."
     )
     def test_tf_as_first_sequential_layer(self):
         layer = layers.TextVectorization(
@@ -219,7 +220,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         model(backend.ops.convert_to_tensor([["foo qux bar"], ["qux baz"]]))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Requires ragged tensors."
+        config.backend() != "tensorflow", reason="Requires ragged tensors."
     )
     def test_ragged_tensor(self):
         layer = layers.TextVectorization(
@@ -234,7 +235,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(output.to_list(), [[4, 1, 3], [1, 2], [4]])
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Requires ragged tensors."
+        config.backend() != "tensorflow", reason="Requires ragged tensors."
     )
     def test_ragged_tensor_output_length(self):
         layer = layers.TextVectorization(
@@ -250,7 +251,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(output.to_list(), [[4, 1], [1, 2], [4]])
 
     @pytest.mark.skipif(
-        backend.backend() == "tensorflow",
+        config.backend() == "tensorflow",
         reason="Verify raises exception for non-TF backends",
     )
     def test_raises_exception_ragged_tensor(self):
@@ -411,7 +412,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         # On non-TF backends, a callable `standardize` should receive a NumPy
         # array of unicode strings (so users can compose `np.char` / numpy
         # string ops) rather than a `tf.EagerTensor`.
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             self.skipTest("Test is for non-TensorFlow backends only.")
 
         seen_types = []
@@ -533,7 +534,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(output, np.array([[2, 3, 4, 1]]))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="one_hot output only supported on TensorFlow",
     )
     def test_one_hot_output(self):
@@ -547,7 +548,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(output.shape[-1], 4)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="sparse=True only supported on TensorFlow",
     )
     def test_sparse_output(self):
@@ -582,7 +583,9 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         self.assertNotIn("unique_word", vocab)
 
     def test_invalid_ngrams(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            TypeError, "Expected `ngrams` to be an integer or `None`"
+        ):
             layers.TextVectorization(ngrams="invalid")
 
     def test_output_sequence_length_with_non_int_mode(self):
@@ -625,3 +628,19 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(_extract_batch(["hello", "world"]), ["hello", "world"])
         self.assertEqual(_extract_batch("single_str"), "single_str")
+
+    def test_numpy_integer_arguments(self):
+        layer = layers.TextVectorization(
+            ngrams=np.int64(2), output_sequence_length=np.int64(4)
+        )
+        config = layer.get_config()
+        self.assertIs(type(config["ngrams"]), int)
+        self.assertEqual(config["ngrams"], 2)
+        self.assertIs(type(config["output_sequence_length"]), int)
+        self.assertEqual(config["output_sequence_length"], 4)
+
+        layer = layers.TextVectorization(ngrams=(np.int64(1), np.int64(2)))
+        ngrams = layer.get_config()["ngrams"]
+        self.assertEqual(ngrams, (1, 2))
+        for n in ngrams:
+            self.assertIs(type(n), int)

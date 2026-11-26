@@ -6,10 +6,12 @@ from keras.src import ops
 from keras.src import regularizers
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 from keras.src.layers.rnn.rnn import RNN
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.LSTMCell")
@@ -106,11 +108,7 @@ class LSTMCell(Layer, DropoutRNNCell):
         seed=None,
         **kwargs,
     ):
-        if units <= 0:
-            raise ValueError(
-                "Received an invalid value for argument `units`, "
-                f"expected a positive integer, got {units}."
-            )
+        units = argument_validation.validate_int("units", units, min_value=1)
         implementation = kwargs.pop("implementation", 2)
         super().__init__(**kwargs)
         self.implementation = implementation
@@ -250,10 +248,10 @@ class LSTMCell(Layer, DropoutRNNCell):
             x_o = ops.matmul(inputs_o, k_o)
             if self.use_bias:
                 b_i, b_f, b_c, b_o = ops.split(self.bias, 4, axis=0)
-                x_i += b_i
-                x_f += b_f
-                x_c += b_c
-                x_o += b_o
+                x_i = x_i + b_i
+                x_f = x_f + b_f
+                x_c = x_c + b_c
+                x_o = x_o + b_o
 
             if training and 0.0 < self.recurrent_dropout < 1.0:
                 rec_dp_mask = self.get_recurrent_dropout_mask(h_tm1)
@@ -515,7 +513,7 @@ class LSTM(RNN):
             )
         self.use_cudnn = use_cudnn
         if (
-            backend.backend() == "tensorflow"
+            config.backend() == "tensorflow"
             and backend.rnn.cudnn_ok(
                 cell.activation,
                 cell.recurrent_activation,
@@ -539,7 +537,7 @@ class LSTM(RNN):
                     # in-place (copy_), which would mutate storage autograd
                     # still needs. The generic RNN loop already clones
                     # inside step(); this path bypasses that copy.
-                    if self.stateful and backend.backend() == "torch":
+                    if self.stateful and config.backend() == "torch":
                         initial_state = tree.map_structure(
                             ops.copy, initial_state
                         )
@@ -573,7 +571,7 @@ class LSTM(RNN):
                     )
                     # We disable jit_compile for the model in this case,
                     # since cuDNN ops aren't XLA compatible.
-                    if backend.backend() == "tensorflow":
+                    if config.backend() == "tensorflow":
                         self.supports_jit = False
                     return out
                 except NotImplementedError:

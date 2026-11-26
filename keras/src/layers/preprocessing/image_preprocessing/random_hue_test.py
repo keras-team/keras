@@ -1,9 +1,9 @@
 import numpy as np
 
 import keras
-from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -48,7 +48,7 @@ class RandomHueTest(testing.TestCase):
         self.assertTrue(keras.ops.numpy.all(adjusted_image <= 255))
 
     def test_random_hue_no_change_with_zero_factor(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             inputs = keras.random.randint((224, 224, 3), 0, 255)
         else:
@@ -67,7 +67,7 @@ class RandomHueTest(testing.TestCase):
         self.assertNotAllClose(adjusted_images, image)
 
     def test_tf_data_compatibility(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_data = np.random.random((2, 8, 8, 3))
         else:

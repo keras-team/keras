@@ -31,20 +31,24 @@ from keras.src import regularizers
 from keras.src import tree
 from keras.src import utils
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
+from keras.src.backend import config
 from keras.src.backend.common import AutocastScope
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import StatelessScope
+from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import get_autocast_scope
 from keras.src.backend.common import get_keras_mask
+from keras.src.backend.common import get_stateless_scope
 from keras.src.backend.common import global_state
+from keras.src.backend.common import in_stateless_scope
+from keras.src.backend.common import in_symbolic_scope
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import remat
 from keras.src.backend.common import set_keras_mask
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common import standardize_shape
-from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.remat import get_current_remat_mode
-from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
@@ -60,13 +64,13 @@ from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
-if backend.backend() == "tensorflow":
+if config.backend() == "tensorflow":
     from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
-elif backend.backend() == "jax":
+elif config.backend() == "jax":
     from keras.src.backend.jax.layer import JaxLayer as BackendLayer
-elif backend.backend() == "torch":
+elif config.backend() == "torch":
     from keras.src.backend.torch.layer import TorchLayer as BackendLayer
-elif backend.backend() == "numpy":
+elif config.backend() == "numpy":
     from keras.src.backend.numpy.layer import NumpyLayer as BackendLayer
 else:
     backend_layer_module = get_pluggable_backend_module(
@@ -387,7 +391,7 @@ class Layer(BackendLayer, Operation):
             },
             exclusions={"non_trainable_variables": ["trainable_variables"]},
         )
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             # Remove attribute tracking for lists (TF-specific attribute)
             _self_setattr_tracking = getattr(
                 self, "_self_setattr_tracking", True
@@ -400,7 +404,7 @@ class Layer(BackendLayer, Operation):
         self._metrics = metrics
         self._seed_generators = seed_generators
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             # Reset attribute tracking (TF-specific)
             self._self_setattr_tracking = _self_setattr_tracking
 
@@ -1245,7 +1249,7 @@ class Layer(BackendLayer, Operation):
         try:
             # Call in stateless scope
             losses = None
-            with backend.StatelessScope(
+            with StatelessScope(
                 state_mapping=mapping, collect_losses=return_losses
             ) as scope:
                 outputs = self._dispatch_call(*args, **kwargs)
@@ -1339,8 +1343,8 @@ class Layer(BackendLayer, Operation):
                     "`add_loss()` can only be called from inside `build()` or "
                     f"`call()`, on a tensor input. Received invalid value: {x}"
                 )
-        if backend.in_stateless_scope():
-            scope = backend.get_stateless_scope()
+        if in_stateless_scope():
+            scope = get_stateless_scope()
             if scope.collect_losses:
                 for x in losses:
                     scope.add_loss(x)
@@ -1349,9 +1353,9 @@ class Layer(BackendLayer, Operation):
             self._losses.extend(losses)
 
     def _get_own_losses(self):
-        if backend.in_stateless_scope():
+        if in_stateless_scope():
             losses = []
-            scope = backend.get_stateless_scope()
+            scope = get_stateless_scope()
             for loss in scope.losses:
                 if id(loss) in self._loss_ids:
                     losses.append(loss)
@@ -1364,11 +1368,11 @@ class Layer(BackendLayer, Operation):
         for variable in self.trainable_weights:
             if variable.regularizer is None:
                 continue
-            if backend.in_stateless_scope() and not in_symbolic_scope():
+            if in_stateless_scope() and not in_symbolic_scope():
                 # If in symbolic scope, we might get `None` from
                 # `get_current_value` in `backend.compute_output_spec`. So we
                 # assign `variable` instead.
-                v = backend.get_stateless_scope().get_current_value(variable)
+                v = get_stateless_scope().get_current_value(variable)
             else:
                 v = variable
             weight_regularization_losses.append(variable.regularizer(v))
@@ -1387,8 +1391,8 @@ class Layer(BackendLayer, Operation):
         return losses
 
     def _clear_losses(self):
-        if backend.in_stateless_scope():
-            scope = backend.get_stateless_scope()
+        if in_stateless_scope():
+            scope = get_stateless_scope()
             if scope.collect_losses:
                 # Filter by identity (id) rather than using list.remove(),
                 # which compares by value. Value comparison on JAX tracers
@@ -1524,6 +1528,10 @@ class Layer(BackendLayer, Operation):
         defines it can be quantized (pass `type_check=False` to quantize an
         instance of a subclass that inherits the geometry).
 
+        The calibration modes (`"gptq"`, `"awq"`) compute a layer's values
+        from calibration data, so they raise here; `Model.quantize` runs
+        them.
+
         Args:
             mode: The quantization mode, e.g. `"int8"`. Optional if `config`
                 is provided.
@@ -1533,6 +1541,14 @@ class Layer(BackendLayer, Operation):
                 parameters.
         """
         config = validate_and_resolve_config(mode, config)
+        strategy = self._check_quantizable(config, type_check)
+        self._swap_quantized(strategy, config, strategy.quantize)
+
+    def _check_quantizable(self, config, type_check=True):
+        """Raises unless `config`'s mode can quantize this layer as it is.
+
+        Nothing on the layer changes. Returns the mode's strategy.
+        """
         mode = config.mode
         self._check_quantize_args(mode, self.compute_dtype)
         geometry = self._quantization_geometry()
@@ -1547,13 +1563,28 @@ class Layer(BackendLayer, Operation):
         strategy.check_quantizable(self)
         if self.lora_enabled:
             self._check_lora_supported(mode)
+        return strategy
+
+    def _swap_quantized(self, strategy, config, swap):
+        """Runs `swap(self, config)` and names the policy after the mode.
+
+        `swap` replaces the float weight with the mode's variables:
+        `strategy.quantize`, or the write-back of a calibration. A swap
+        that raises before the layer is quantized leaves its config as it
+        was.
+        """
+        previous_config = self.quantization_config
         self._tracker.unlock()
         try:
             # Record the config only after the mode is validated, so a
             # rejected mode leaves the layer untouched.
             self.quantization_config = config
-            strategy.quantize(self, config)
+            swap(self, config)
             self._finalize_quantization_policy(strategy, config)
+        except Exception:
+            if not self._is_quantized:
+                self.quantization_config = previous_config
+            raise
         finally:
             self._tracker.lock()
 
@@ -1644,9 +1675,6 @@ class Layer(BackendLayer, Operation):
         mode = self.quantization_mode
         if mode not in self.variable_serialization_spec:
             raise self._quantization_mode_error(mode)
-        strategy = strategy_registry.get_strategy(mode)
-        if strategy is not None:
-            strategy.check_saveable(self)
         value, scale, zero_point = self._get_weight_with_merged_lora(name)
         merged = {name: value}
         if scale is not None:
@@ -1692,9 +1720,6 @@ class Layer(BackendLayer, Operation):
             for factor in ("a", "b"):
                 lora = getattr(self, f"lora_{name}_{factor}")
                 lora.assign(ops.zeros(lora.shape))
-        strategy = strategy_registry.get_strategy(mode)
-        if strategy is not None:
-            strategy.variables_loaded(self)
 
     def _quantization_type_owner(self):
         """The class whose `_quantization_geometry` definition applies."""
@@ -1931,7 +1956,7 @@ class Layer(BackendLayer, Operation):
     def _build_by_run_for_single_pos_arg(self, input_shape):
         # Case: all inputs are in the first arg (possibly nested).
         input_tensors = tree.map_shape_structure(
-            lambda s: backend.KerasTensor(s), input_shape
+            lambda s: KerasTensor(s), input_shape
         )
         try:
             # Because `build` is not defined, we trace `call` via
@@ -1958,7 +1983,7 @@ class Layer(BackendLayer, Operation):
         # Case: all input keyword arguments were plain tensors.
         input_tensors = {
             # We strip the `_shape` suffix to recover kwarg names.
-            utils.removesuffix(k, "_shape"): backend.KerasTensor(shape)
+            utils.removesuffix(k, "_shape"): KerasTensor(shape)
             for k, shape in shapes_dict.items()
         }
         try:
@@ -1999,7 +2024,7 @@ class Layer(BackendLayer, Operation):
         # `_compiled_trainable_state` is a dict keyed by layer objects,
         # which flax's attribute scanning cannot process.
         if (
-            backend.backend() == "jax"
+            config.backend() == "jax"
             and is_nnx_enabled()
             and name
             in (
@@ -2043,7 +2068,7 @@ class Layer(BackendLayer, Operation):
                     self.input_spec, arg_0, layer_name=self.name
                 )
             except SystemError:
-                if backend.backend() == "torch":
+                if config.backend() == "torch":
                     # TODO: The torch backend failed the ONNX CI with the error:
                     # SystemError: <method '__int__' of 'torch._C.TensorBase'
                     # objects> returned a result with an exception set
@@ -2249,7 +2274,7 @@ class Layer(BackendLayer, Operation):
 def is_backend_tensor_or_symbolic(x, allow_none=False):
     if allow_none and x is None:
         return True
-    return backend.ops.is_tensor(x) or isinstance(x, backend.KerasTensor)
+    return backend.ops.is_tensor(x) or isinstance(x, KerasTensor)
 
 
 class CallSpec:

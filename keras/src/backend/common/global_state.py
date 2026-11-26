@@ -1,8 +1,8 @@
 import gc
 import threading
 
-from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 
 GLOBAL_STATE_TRACKER = threading.local()
 
@@ -53,7 +53,7 @@ def clear_session(free_memory=True):
       # With `clear_session()` called at the beginning,
       # Keras starts with a blank state at each iteration
       # and memory consumption is constant over time.
-      keras.backend.clear_session()
+      keras.utils.clear_session()
       model = keras.Sequential([
           keras.layers.Dense(10) for _ in range(10)])
     ```
@@ -64,7 +64,7 @@ def clear_session(free_memory=True):
     >>> new_layer = keras.layers.Dense(10)
     >>> print(new_layer.name)
     dense_10
-    >>> keras.backend.clear_session()
+    >>> keras.utils.clear_session()
     >>> new_layer = keras.layers.Dense(10)
     >>> print(new_layer.name)
     dense
@@ -81,7 +81,7 @@ def clear_session(free_memory=True):
 
     GLOBAL_STATE_TRACKER = threading.local()
 
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         from keras.src.utils.module_utils import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
@@ -91,7 +91,7 @@ def clear_session(free_memory=True):
             from tensorflow.python.eager import context
 
             context.context().clear_kernel_cache()
-    elif backend.backend() == "torch":
+    elif config.backend() == "torch":
         import torch._dynamo as dynamo
 
         # reset's torchdynamo's cache so that  cached guards, compiled fn, etc

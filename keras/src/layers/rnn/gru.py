@@ -6,10 +6,12 @@ from keras.src import ops
 from keras.src import regularizers
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 from keras.src.layers.rnn.rnn import RNN
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.GRUCell")
@@ -104,11 +106,7 @@ class GRUCell(Layer, DropoutRNNCell):
         seed=None,
         **kwargs,
     ):
-        if units <= 0:
-            raise ValueError(
-                "Received an invalid value for argument `units`, "
-                f"expected a positive integer, got {units}."
-            )
+        units = argument_validation.validate_int("units", units, min_value=1)
         implementation = kwargs.pop("implementation", 2)
         super().__init__(**kwargs)
         self.implementation = implementation
@@ -211,9 +209,9 @@ class GRUCell(Layer, DropoutRNNCell):
             x_h = ops.matmul(inputs_h, self.kernel[:, self.units * 2 :])
 
             if self.use_bias:
-                x_z += input_bias[: self.units]
-                x_r += input_bias[self.units : self.units * 2]
-                x_h += input_bias[self.units * 2 :]
+                x_z = x_z + input_bias[: self.units]
+                x_r = x_r + input_bias[self.units : self.units * 2]
+                x_h = x_h + input_bias[self.units * 2 :]
 
             if training and 0.0 < self.recurrent_dropout < 1.0:
                 rec_dp_mask = self.get_recurrent_dropout_mask(h_tm1)
@@ -232,8 +230,10 @@ class GRUCell(Layer, DropoutRNNCell):
                 h_tm1_r, self.recurrent_kernel[:, self.units : self.units * 2]
             )
             if self.reset_after and self.use_bias:
-                recurrent_z += recurrent_bias[: self.units]
-                recurrent_r += recurrent_bias[self.units : self.units * 2]
+                recurrent_z = recurrent_z + recurrent_bias[: self.units]
+                recurrent_r = (
+                    recurrent_r + recurrent_bias[self.units : self.units * 2]
+                )
 
             z = self.recurrent_activation(x_z + recurrent_z)
             r = self.recurrent_activation(x_r + recurrent_r)
@@ -244,7 +244,7 @@ class GRUCell(Layer, DropoutRNNCell):
                     h_tm1_h, self.recurrent_kernel[:, self.units * 2 :]
                 )
                 if self.use_bias:
-                    recurrent_h += recurrent_bias[self.units * 2 :]
+                    recurrent_h = recurrent_h + recurrent_bias[self.units * 2 :]
                 recurrent_h = r * recurrent_h
             else:
                 recurrent_h = ops.matmul(
@@ -269,7 +269,7 @@ class GRUCell(Layer, DropoutRNNCell):
                 # hidden state projected by all gate matrices at once
                 matrix_inner = ops.matmul(h_tm1, self.recurrent_kernel)
                 if self.use_bias:
-                    matrix_inner += recurrent_bias
+                    matrix_inner = matrix_inner + recurrent_bias
             else:
                 # hidden state projected separately for update/reset and new
                 matrix_inner = ops.matmul(
@@ -532,7 +532,7 @@ class GRU(RNN):
             )
         self.use_cudnn = use_cudnn
         if (
-            backend.backend() == "tensorflow"
+            config.backend() == "tensorflow"
             and backend.rnn.cudnn_ok(
                 cell.activation,
                 cell.recurrent_activation,
@@ -558,7 +558,7 @@ class GRU(RNN):
                     # which would mutate storage autograd still needs. The
                     # generic RNN loop already clones inside step(); this
                     # path bypasses that copy.
-                    if self.stateful and backend.backend() == "torch":
+                    if self.stateful and config.backend() == "torch":
                         initial_state = ops.copy(initial_state)
                     if training and self.dropout:
                         dp_mask = self.cell.get_dropout_mask(sequences[:, 0, :])
@@ -589,7 +589,7 @@ class GRU(RNN):
                     )
                     # We disable jit_compile for the model in this case,
                     # since cuDNN ops aren't XLA compatible.
-                    if backend.backend() == "tensorflow":
+                    if config.backend() == "tensorflow":
                         self.supports_jit = False
                     return out
                 except NotImplementedError:

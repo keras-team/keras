@@ -12,6 +12,13 @@ from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
 
 
+def seed_dtype():
+    # uint32 doesn't exist in torch. Seeds are conceptually uint32 values;
+    # int32 is used and the bit pattern is reinterpreted as uint32 at each
+    # call site (torch_seed_generator / torch.manual_seed) via & 0xFFFFFFFF.
+    return "int32"
+
+
 # torch.Generator not supported with dynamo
 # see: https://github.com/pytorch/pytorch/issues/88576
 @dynamo.disable()

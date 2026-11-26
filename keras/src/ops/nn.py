@@ -4,12 +4,13 @@ import warnings
 
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
-from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
-from keras.src.backend import standardize_data_format
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import result_type
+from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -21,17 +22,14 @@ from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
 from keras.src.ops import operation_utils
+from keras.src.ops.operation import ElementwiseUnaryOperation
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
 from keras.src.utils.argument_validation import standardize_tuple
 
 
-class Relu(Operation):
-    def call(self, x):
-        return backend.ops.nn.relu(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class Relu(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.relu
 
 
 @keras_export(["keras.ops.relu", "keras.ops.nn.relu"])
@@ -57,12 +55,8 @@ def relu(x):
     return backend.ops.nn.relu(x)
 
 
-class Relu6(Operation):
-    def call(self, x):
-        return backend.ops.nn.relu6(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class Relu6(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.relu6
 
 
 @keras_export(["keras.ops.relu6", "keras.ops.nn.relu6"])
@@ -88,12 +82,9 @@ def relu6(x):
     return backend.ops.nn.relu6(x)
 
 
-class Sigmoid(Operation):
-    def call(self, x):
-        return backend.ops.nn.sigmoid(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class Sigmoid(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.sigmoid
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.sigmoid", "keras.ops.nn.sigmoid"])
@@ -120,14 +111,9 @@ def sigmoid(x):
     return backend.ops.nn.sigmoid(x)
 
 
-class SparseSigmoid(Operation):
-    def call(self, x):
-        return backend.ops.nn.sparse_sigmoid(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
-        )
+class SparseSigmoid(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.sparse_sigmoid
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.sparse_sigmoid", "keras.ops.nn.sparse_sigmoid"])
@@ -158,12 +144,8 @@ def sparse_sigmoid(x):
     return backend.ops.nn.sparse_sigmoid(x)
 
 
-class Softplus(Operation):
-    def call(self, x):
-        return backend.ops.nn.softplus(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class Softplus(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.softplus
 
 
 @keras_export(["keras.ops.softplus", "keras.ops.nn.softplus"])
@@ -191,12 +173,9 @@ def softplus(x):
     return backend.ops.nn.softplus(x)
 
 
-class Softsign(Operation):
-    def call(self, x):
-        return backend.ops.nn.softsign(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class Softsign(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.softsign
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.softsign", "keras.ops.nn.softsign"])
@@ -223,18 +202,16 @@ def softsign(x):
     return backend.ops.nn.softsign(x)
 
 
-class SoftShrink(Operation):
+class SoftShrink(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.soft_shrink
+    promote_to_float = True
+
     def __init__(self, threshold=0.5, *, name=None):
         super().__init__(name=name)
         self.threshold = threshold
 
     def call(self, x):
-        return backend.ops.nn.soft_shrink(x, self.threshold)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
-        )
+        return self.call_fn(x, self.threshold)
 
 
 @keras_export(["keras.ops.soft_shrink", "keras.ops.nn.soft_shrink"])
@@ -267,14 +244,9 @@ def soft_shrink(x, threshold=0.5):
     return backend.ops.nn.soft_shrink(x, threshold)
 
 
-class SparsePlus(Operation):
-    def call(self, x):
-        return backend.ops.nn.sparse_plus(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
-        )
+class SparsePlus(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.sparse_plus
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.sparse_plus", "keras.ops.nn.sparse_plus"])
@@ -307,12 +279,8 @@ def sparse_plus(x):
     return backend.ops.nn.sparse_plus(x)
 
 
-class Silu(Operation):
-    def call(self, x):
-        return backend.ops.nn.silu(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class Silu(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.silu
 
 
 @keras_export(
@@ -349,16 +317,27 @@ def silu(x):
     return backend.ops.nn.silu(x)
 
 
-class Squareplus(Operation):
+def _squareplus(x, b=4):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.nn, "squareplus"
+    ):
+        return backend.ops.nn.squareplus(x, b)
+    x = backend.ops.convert_to_tensor(x)
+    b = backend.ops.convert_to_tensor(b, dtype=x.dtype)
+    y = (x + backend.ops.numpy.sqrt(backend.ops.numpy.square(x) + b)) / 2.0
+    return backend.ops.cast(y, dtype=x.dtype)
+
+
+class Squareplus(ElementwiseUnaryOperation):
+    call_fn = _squareplus
+    promote_to_float = True
+
     def __init__(self, b=4, *, name=None):
         super().__init__(name=name)
         self.b = b
 
     def call(self, x):
-        return _squareplus(x, self.b)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return self.call_fn(x, self.b)
 
 
 @keras_export(["keras.ops.squareplus", "keras.ops.nn.squareplus"])
@@ -389,23 +368,8 @@ def squareplus(x, b=4):
     return _squareplus(x, b)
 
 
-def _squareplus(x, b):
-    if not config._use_backend_agnostic_ops() and hasattr(
-        backend.ops.nn, "squareplus"
-    ):
-        return backend.ops.nn.squareplus(x, b)
-    x = backend.ops.convert_to_tensor(x)
-    b = backend.ops.convert_to_tensor(b, dtype=x.dtype)
-    y = (x + backend.ops.numpy.sqrt(backend.ops.numpy.square(x) + b)) / 2.0
-    return backend.ops.cast(y, dtype=x.dtype)
-
-
-class LogSigmoid(Operation):
-    def call(self, x):
-        return backend.ops.nn.log_sigmoid(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class LogSigmoid(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.log_sigmoid
 
 
 @keras_export(
@@ -437,20 +401,16 @@ def log_sigmoid(x):
     return backend.ops.nn.log_sigmoid(x)
 
 
-class LeakyRelu(Operation):
+class LeakyRelu(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.leaky_relu
+    promote_to_float = True
+
     def __init__(self, negative_slope=0.2, *, name=None):
         super().__init__(name=name)
         self.negative_slope = negative_slope
 
     def call(self, x):
-        return backend.ops.nn.leaky_relu(x, self.negative_slope)
-
-    def compute_output_spec(self, x):
-        # Integer and bool input is promoted to `floatx`, matching what the
-        # backends return. Same rule as `Exp.compute_output_spec`.
-        return KerasTensor(
-            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
-        )
+        return self.call_fn(x, self.negative_slope)
 
 
 @keras_export(["keras.ops.leaky_relu", "keras.ops.nn.leaky_relu"])
@@ -482,14 +442,9 @@ def leaky_relu(x, negative_slope=0.2):
     return backend.ops.nn.leaky_relu(x, negative_slope=negative_slope)
 
 
-class HardSigmoid(Operation):
-    def call(self, x):
-        return backend.ops.nn.hard_sigmoid(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
-        )
+class HardSigmoid(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.hard_sigmoid
+    promote_to_float = True
 
 
 @keras_export(
@@ -524,14 +479,9 @@ def hard_sigmoid(x):
     return backend.ops.nn.hard_sigmoid(x)
 
 
-class HardSilu(Operation):
-    def call(self, x):
-        return backend.ops.nn.hard_silu(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
-        )
+class HardSilu(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.hard_silu
+    promote_to_float = True
 
 
 @keras_export(
@@ -571,16 +521,15 @@ def hard_silu(x):
     return backend.ops.nn.hard_silu(x)
 
 
-class Elu(Operation):
+class Elu(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.elu
+
     def __init__(self, alpha=1.0, *, name=None):
         super().__init__(name=name)
         self.alpha = alpha
 
     def call(self, x):
-        return backend.ops.nn.elu(x, alpha=self.alpha)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return self.call_fn(x, alpha=self.alpha)
 
 
 @keras_export(["keras.ops.elu", "keras.ops.nn.elu"])
@@ -611,14 +560,9 @@ def elu(x, alpha=1.0):
     return backend.ops.nn.elu(x, alpha=alpha)
 
 
-class Selu(Operation):
-    def call(self, x):
-        return backend.ops.nn.selu(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
-        )
+class Selu(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.selu
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.selu", "keras.ops.nn.selu"])
@@ -649,16 +593,15 @@ def selu(x):
     return backend.ops.nn.selu(x)
 
 
-class Gelu(Operation):
+class Gelu(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.gelu
+
     def __init__(self, approximate=True, *, name=None):
         super().__init__(name=name)
         self.approximate = approximate
 
     def call(self, x):
-        return backend.ops.nn.gelu(x, self.approximate)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return self.call_fn(x, self.approximate)
 
 
 @keras_export(["keras.ops.gelu", "keras.ops.nn.gelu"])
@@ -692,16 +635,15 @@ def gelu(x, approximate=True):
     return backend.ops.nn.gelu(x, approximate)
 
 
-class Celu(Operation):
+class Celu(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.celu
+
     def __init__(self, alpha=1.0, *, name=None):
         super().__init__(name=name)
         self.alpha = alpha
 
     def call(self, x):
-        return backend.ops.nn.celu(x, self.alpha)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return self.call_fn(x, self.alpha)
 
 
 @keras_export(["keras.ops.celu", "keras.ops.nn.celu"])
@@ -782,12 +724,8 @@ def glu(x, axis=-1):
     return backend.ops.nn.glu(x, axis=axis)
 
 
-class TanhShrink(Operation):
-    def call(self, x):
-        return backend.ops.nn.tanh_shrink(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class TanhShrink(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.tanh_shrink
 
 
 @keras_export(["keras.ops.tanh_shrink", "keras.ops.nn.tanh_shrink"])
@@ -818,12 +756,8 @@ def tanh_shrink(x):
     return backend.ops.nn.tanh_shrink(x)
 
 
-class HardTanh(Operation):
-    def call(self, x):
-        return backend.ops.nn.hard_tanh(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class HardTanh(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.hard_tanh
 
 
 @keras_export(["keras.ops.hard_tanh", "keras.ops.nn.hard_tanh"])
@@ -854,16 +788,16 @@ def hard_tanh(x):
     return backend.ops.nn.hard_tanh(x)
 
 
-class HardShrink(Operation):
+class HardShrink(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.hard_shrink
+    promote_to_float = True
+
     def __init__(self, threshold=0.5, *, name=None):
         super().__init__(name=name)
         self.threshold = threshold
 
     def call(self, x):
-        return backend.ops.nn.hard_shrink(x, self.threshold)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return self.call_fn(x, self.threshold)
 
 
 @keras_export(["keras.ops.hard_shrink", "keras.ops.nn.hard_shrink"])
@@ -895,17 +829,16 @@ def hard_shrink(x, threshold=0.5):
     return backend.ops.nn.hard_shrink(x, threshold)
 
 
-class Threshold(Operation):
+class Threshold(ElementwiseUnaryOperation):
+    call_fn = backend.ops.nn.threshold
+
     def __init__(self, threshold, default_value, *, name=None):
         super().__init__(name=name)
         self.threshold = threshold
         self.default_value = default_value
 
     def call(self, x):
-        return backend.ops.nn.threshold(x, self.threshold, self.default_value)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return self.call_fn(x, self.threshold, self.default_value)
 
 
 @keras_export(["keras.ops.threshold", "keras.ops.nn.threshold"])
@@ -937,18 +870,41 @@ def threshold(x, threshold, default_value):
     return backend.ops.nn.threshold(x, threshold, default_value)
 
 
+def _apply_over_axes(fn, x, axis):
+    """Applies `fn(x, axis=...)` over one axis, or a tuple or list of axes.
+
+    Several axes move last and merge into one, so `fn` only reduces a single
+    axis. The merge reads the dynamic shape, for unknown dimensions on
+    TensorFlow.
+    """
+    if not isinstance(axis, (tuple, list)):
+        return fn(x, axis=axis)
+    x = backend.ops.convert_to_tensor(x)
+    axis = canonicalize_axes(axis, len(x.shape))
+    axis_to_keep = [v for v in range(len(x.shape)) if v not in axis]
+    x = backend.ops.numpy.transpose(x, axes=(*axis_to_keep, *axis))
+    shape = backend.ops.shape(x)
+    x = backend.ops.numpy.reshape(x, (*shape[: len(axis_to_keep)], -1))
+    x = backend.ops.numpy.reshape(fn(x, axis=-1), shape)
+    combined = [*axis_to_keep, *axis]
+    return backend.ops.numpy.transpose(
+        x, axes=sorted(range(len(combined)), key=combined.__getitem__)
+    )
+
+
 class Softmax(Operation):
     def __init__(self, axis=-1, *, name=None):
         super().__init__(name=name)
         self.axis = axis
 
     def call(self, x):
-        return backend.ops.nn.softmax(x, axis=self.axis)
+        return _apply_over_axes(backend.ops.nn.softmax, x, self.axis)
 
     def compute_output_spec(self, x):
         if self.axis is not None:
             canonicalize_axes(self.axis, len(x.shape))
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.softmax", "keras.ops.nn.softmax"])
@@ -979,6 +935,8 @@ def softmax(x, axis=-1):
     array([0.09003057, 0.24472847, 0.66524096], shape=(3,), dtype=float64)
 
     """
+    if not any_symbolic_tensors((x,)):
+        x = backend.ops.convert_to_tensor(x)
     # Don't use `backend.ops.shape` since TensorFlow returns
     # symbolic tensors for unknown shape which can trigger
     # an error in TensorFlow graph execution.
@@ -989,34 +947,14 @@ def softmax(x, axis=-1):
     ):
         warnings.warn(
             f"You are using a softmax over axis {axis} "
-            f"of a tensor of shape {x.shape}. This axis "
+            f"of a tensor of shape {tuple(x.shape)}. This axis "
             "has size 1. The softmax operation will always return "
             "the value 1, which is likely not what you intended. "
             "Did you mean to use a sigmoid instead?"
         )
     if any_symbolic_tensors((x,)):
         return Softmax(axis).symbolic_call(x)
-    if isinstance(axis, tuple):
-        axis_to_keep = [v for v in range(len(x.shape)) if v not in axis]
-
-        x_transposed = backend.ops.numpy.transpose(
-            x, axes=(*axis_to_keep, *axis)
-        )
-        x_reshaped = backend.ops.numpy.reshape(
-            x_transposed, (*[x.shape[v] for v in axis_to_keep], -1)
-        )
-
-        x = backend.ops.nn.softmax(x_reshaped, axis=-1)
-
-        x = backend.ops.numpy.reshape(x, x_transposed.shape)
-        combined = [*axis_to_keep, *axis]
-        x = backend.ops.numpy.transpose(
-            x,
-            axes=sorted(range(len(combined)), key=combined.__getitem__),
-        )
-        return x
-    else:
-        return backend.ops.nn.softmax(x, axis=axis)
+    return _apply_over_axes(backend.ops.nn.softmax, x, axis)
 
 
 class LogSoftmax(Operation):
@@ -1025,12 +963,13 @@ class LogSoftmax(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.ops.nn.log_softmax(x, axis=self.axis)
+        return _apply_over_axes(backend.ops.nn.log_softmax, x, self.axis)
 
     def compute_output_spec(self, x):
         if self.axis is not None:
             canonicalize_axes(self.axis, len(x.shape))
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(
@@ -1063,27 +1002,7 @@ def log_softmax(x, axis=-1):
     """
     if any_symbolic_tensors((x,)):
         return LogSoftmax(axis).symbolic_call(x)
-    if isinstance(axis, tuple):
-        axis_to_keep = [v for v in range(len(x.shape)) if v not in axis]
-
-        x_transposed = backend.ops.numpy.transpose(
-            x, axes=(*axis_to_keep, *axis)
-        )
-        x_reshaped = backend.ops.numpy.reshape(
-            x_transposed, (*[x.shape[v] for v in axis_to_keep], -1)
-        )
-
-        x = backend.ops.nn.log_softmax(x_reshaped, axis=-1)
-
-        x = backend.ops.numpy.reshape(x, x_transposed.shape)
-        combined = [*axis_to_keep, *axis]
-        x = backend.ops.numpy.transpose(
-            x,
-            axes=sorted(range(len(combined)), key=combined.__getitem__),
-        )
-        return x
-    else:
-        return backend.ops.nn.log_softmax(x, axis=axis)
+    return _apply_over_axes(backend.ops.nn.log_softmax, x, axis)
 
 
 class Sparsemax(Operation):
@@ -1243,7 +1162,7 @@ class AdaptiveMaxPool(Operation):
             )
         else:
             output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
-        return backend.KerasTensor(output_shape, dtype=inputs.dtype)
+        return KerasTensor(output_shape, dtype=inputs.dtype)
 
 
 @keras_export(["keras.ops.adaptive_max_pool", "keras.ops.nn.adaptive_max_pool"])
@@ -1418,7 +1337,7 @@ class AdaptiveAveragePool(Operation):
             )
         else:
             output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
-        return backend.KerasTensor(output_shape, dtype=inputs.dtype)
+        return KerasTensor(output_shape, dtype=inputs.dtype)
 
 
 @keras_export(
@@ -2001,7 +1920,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
         x,
         num_classes,
         axis=axis,
-        dtype=dtype or backend.floatx(),
+        dtype=dtype or config.floatx(),
         sparse=sparse,
     )
 
@@ -2025,7 +1944,7 @@ class BinaryCrossentropy(Operation):
             )
         dtype = standardize_dtype(output.dtype)
         if not is_float_dtype(dtype):
-            dtype = backend.floatx()
+            dtype = config.floatx()
         return KerasTensor(output.shape, dtype=dtype)
 
 
@@ -2270,7 +2189,7 @@ class MultiHot(Operation):
         super().__init__(name=name)
         self.num_classes = num_classes
         self.axis = axis
-        self.dtype = dtype or backend.floatx()
+        self.dtype = dtype or config.floatx()
         self.sparse = sparse
 
     def call(self, inputs):
@@ -2532,7 +2451,7 @@ class CTCLoss(Operation):
         self._check_shape_first_dim(
             "output_length", output_length.shape, "output", output.shape
         )
-        dtype = backend.result_type(output.dtype, "float32")
+        dtype = result_type(output.dtype, "float32")
         return KerasTensor((target.shape[0],), dtype=dtype)
 
 
@@ -2602,7 +2521,7 @@ class CTCDecode(Operation):
             top_paths = 1
         else:
             top_paths = self.top_paths
-        dtype = backend.result_type(inputs.dtype, "float32")
+        dtype = result_type(inputs.dtype, "float32")
         return (
             KerasTensor(
                 (top_paths, inputs_shape[0], inputs_shape[1]), dtype="int32"
@@ -2688,7 +2607,9 @@ class Normalize(Operation):
     def compute_output_spec(self, x):
         if self.axis is not None:
             canonicalize_axes(self.axis, len(x.shape))
-        return KerasTensor(shape=x.shape)
+        return KerasTensor(
+            shape=x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
+        )
 
     def call(self, x):
         return _normalize(
@@ -2714,7 +2635,7 @@ def normalize(x, axis=-1, order=2, epsilon=None):
         order: The exponent value in the norm formulation.
             Defaults to 2.
         epsilon: A lower bound value for the norm.
-            Defaults to `backend.epsilon()`.
+            Defaults to `config.epsilon()`.
 
     Returns:
         The normalized array.
@@ -2741,10 +2662,11 @@ def _normalize(x, axis=-1, order=2, epsilon=None):
             f"Argument `order` must be an int >= 1. Received: order={order}"
         )
     x = backend.ops.convert_to_tensor(x)
+    x = backend.ops.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     if len(x.shape) == 0:
         x = backend.ops.numpy.expand_dims(x, axis=0)
     if epsilon is None:
-        epsilon = backend.epsilon()
+        epsilon = config.epsilon()
     if 2 == order:
         # A special case: L2 normalization with `x * rsqrt(...)`
         # instead of `x / sqrt(...)`. Clamp the squared norm before the
@@ -2880,7 +2802,7 @@ class DotProductAttention(Operation):
         mask=None,
         scale=None,
     ):
-        dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+        dtype = result_type(query.dtype, key.dtype, value.dtype)
         return KerasTensor(query.shape, dtype=dtype)
 
 
@@ -2951,7 +2873,7 @@ def dot_product_attention(
     (2, 4, 8, 16)
     """
     if attn_logits_soft_cap is not None:
-        if backend.backend() == "jax":
+        if config.backend() == "jax":
             import jax
 
             if jax.devices()[0].platform != "tpu":
@@ -3029,7 +2951,7 @@ def rms_normalization(x, scale=None, axis=-1, epsilon=None):
         axis: The axis or axes along which to perform normalization. Defaults
             to `-1`.
         epsilon: A lower bound value for the norm. Defaults to
-            `backend.epsilon()`.
+            `config.epsilon()`.
 
     Returns:
         The normalized array.
@@ -3048,11 +2970,11 @@ def rms_normalization(x, scale=None, axis=-1, epsilon=None):
 
 def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
     if epsilon is None:
-        epsilon = backend.epsilon()
+        epsilon = config.epsilon()
     original_dtype = standardize_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
-    compute_dtype = backend.result_type(x.dtype, "float32")
+    compute_dtype = result_type(x.dtype, "float32")
 
     x = backend.ops.convert_to_tensor(x, dtype=compute_dtype)
     if scale is not None:
@@ -3109,7 +3031,7 @@ class LayerNorm(Operation):
     ]
 )
 def layer_normalization(
-    x, gamma=None, beta=None, axis=-1, epsilon=None, **kwargs
+    x, gamma=None, beta=None, axis=-1, epsilon=None, *, rms_scaling=False
 ):
     """Layer normalization layer (Ba et al., 2016).
 
@@ -3125,7 +3047,9 @@ def layer_normalization(
         axis: The axis or axes along which to perform normalization. Default to
             `-1`.
         epsilon: A lower bound value for the norm.
-            Defaults to `backend.epsilon()`.
+            Defaults to `config.epsilon()`.
+        rms_scaling: Deprecated. Please use `keras.ops.rms_normalization` /
+            `keras.ops.nn.rms_normalization` instead. Defaults to `False`.
 
     Returns:
         The normalized array.
@@ -3136,7 +3060,6 @@ def layer_normalization(
     >>> keras.ops.layer_normalization(x)
     array([-1.4142135, -0.70710677, 0.0, 0.7071067, 1.4142135])
     """
-    rms_scaling = kwargs.pop("rms_scaling", False)
     if rms_scaling:
         warnings.warn(
             "You passed `rms_scaling=True`, which is deprecated. This argument "
@@ -3164,11 +3087,11 @@ def _layer_normalization(
     x, gamma=None, beta=None, axis=-1, epsilon=None, rms_scaling=False
 ):
     if epsilon is None:
-        epsilon = backend.epsilon()
+        epsilon = config.epsilon()
     original_dtype = standardize_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
-    compute_dtype = backend.result_type(x.dtype, "float32")
+    compute_dtype = result_type(x.dtype, "float32")
 
     x = backend.ops.convert_to_tensor(x, dtype=compute_dtype)
     if gamma is not None:
@@ -3231,8 +3154,8 @@ class Polar(Operation):
     def compute_output_spec(self, abs_, angle):
         dtype = standardize_dtype(
             dtypes.result_type(
-                getattr(abs_, "dtype", backend.floatx()),
-                getattr(angle, "dtype", backend.floatx()),
+                getattr(abs_, "dtype", config.floatx()),
+                getattr(angle, "dtype", config.floatx()),
             )
         )
         # `polar` combines two real tensors into a complex one, so the output

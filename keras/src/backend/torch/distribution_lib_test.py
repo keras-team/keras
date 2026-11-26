@@ -7,8 +7,8 @@ from absl.testing import parameterized
 from torch.distributed import tensor as torch_tensor
 from torch.distributed.device_mesh import DeviceMesh as TorchDeviceMesh
 
-from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.torch import distribution_lib
 from keras.src.backend.torch.distributed_test_utils import (
     TorchDistributedTestMixin,
@@ -21,7 +21,7 @@ from keras.src.distribution.distribution_lib import ModelParallel
 from keras.src.distribution.distribution_lib import TensorLayout
 
 
-@pytest.mark.skipif(backend.backend() != "torch", reason="Requires torch")
+@pytest.mark.skipif(config.backend() != "torch", reason="Requires torch")
 @pytest.mark.no_pytest_xdist
 class TorchDistributionLibTest(TorchDistributedTestMixin, testing.TestCase):
     def set_env(self, key, value):

@@ -7,6 +7,7 @@ from tensorflow import data as tf_data
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 
 
 class IntegerLookupTest(testing.TestCase):
@@ -216,7 +217,7 @@ class IntegerLookupTest(testing.TestCase):
             layers.IntegerLookup(num_oov_indices=-1)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="sparse=True only supported on TensorFlow",
     )
     def test_sparse_output(self):
@@ -323,3 +324,17 @@ class IntegerLookupTest(testing.TestCase):
         out_farmhash = backend.ops.convert_to_numpy(layer_farmhash(oov_values))
         out_siphash = backend.ops.convert_to_numpy(layer_siphash(oov_values))
         self.assertFalse(np.array_equal(out_farmhash, out_siphash))
+
+    def test_numpy_integer_salt(self):
+        vocab = [10, 20, 30]
+        oov_values = np.array([100, 300, 700, 1100, 1700, 2000])
+        outputs = []
+        for salt in (137, np.int64(137)):
+            layer = layers.IntegerLookup(
+                vocabulary=vocab,
+                num_oov_indices=4,
+                oov_method="farmhash",
+                salt=salt,
+            )
+            outputs.append(backend.ops.convert_to_numpy(layer(oov_values)))
+        self.assertAllEqual(outputs[0], outputs[1])

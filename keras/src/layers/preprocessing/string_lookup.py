@@ -2,11 +2,12 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.layers.preprocessing.index_lookup import IndexLookup
 from keras.src.utils import backend_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
-if backend.backend() == "torch":
+if config.backend() == "torch":
     import torch
 
 
@@ -321,7 +322,7 @@ class StringLookup(IndexLookup):
                 "Layer StringLookup requires TensorFlow. "
                 "Install it via `pip install tensorflow`."
             )
-        if sparse and backend.backend() != "tensorflow":
+        if sparse and config.backend() != "tensorflow":
             raise ValueError(
                 "`sparse=True` can only be used with the TensorFlow backend."
             )
@@ -392,7 +393,7 @@ class StringLookup(IndexLookup):
         return {**base_config, **config}
 
     def call(self, inputs):
-        is_torch_backend = backend.backend() == "torch"
+        is_torch_backend = config.backend() == "torch"
 
         # Handle input conversion
         inputs_for_processing = inputs

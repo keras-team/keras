@@ -5,11 +5,10 @@ from unittest import mock
 
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils import file_utils
 from keras.src.utils import text_dataset_utils
-from keras.src.utils.module_utils import LazyModule
 
 
 class TextDatasetFromDirectoryTest(testing.TestCase):
@@ -73,7 +72,7 @@ class TextDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         # We just return the texts, no labels
-        if format == "tf" or backend.backend() == "tensorflow":
+        if format == "tf" or config.backend() == "tensorflow":
             self.assertEqual(list(batch.shape), [5])
             self.assertDType(batch, "string")
         else:
@@ -103,7 +102,7 @@ class TextDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        if format == "tf" or backend.backend() == "tensorflow":
+        if format == "tf" or config.backend() == "tensorflow":
             self.assertEqual(batch[0].shape, (8,))
             self.assertDType(batch[0], "string")
             self.assertEqual(len(batch[0].numpy()[0]), 10)  # Test max_length
@@ -122,7 +121,7 @@ class TextDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        if format == "tf" or backend.backend() == "tensorflow":
+        if format == "tf" or config.backend() == "tensorflow":
             self.assertEqual(list(batch[0].shape), [8])
             self.assertEqual(batch[0].dtype.name, "string")
         else:
@@ -139,7 +138,7 @@ class TextDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        if format == "tf" or backend.backend() == "tensorflow":
+        if format == "tf" or config.backend() == "tensorflow":
             self.assertEqual(list(batch[0].shape), [8])
             self.assertEqual(batch[0].dtype.name, "string")
         else:
@@ -189,7 +188,7 @@ class TextDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        if format == "tf" or backend.backend() == "tensorflow":
+        if format == "tf" or config.backend() == "tensorflow":
             self.assertEqual(list(batch[0].shape), [8])
             self.assertEqual(batch[0].dtype.name, "string")
         else:
@@ -203,7 +202,7 @@ class TextDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        if format == "tf" or backend.backend() == "tensorflow":
+        if format == "tf" or config.backend() == "tensorflow":
             self.assertEqual(list(batch[0].shape), [8])
             self.assertEqual(batch[0].dtype.name, "string")
         else:
@@ -409,12 +408,7 @@ class TextDatasetFromDirectoryTest(testing.TestCase):
         directory = self._prepare_directory(
             num_classes=2, count=8, nested_dirs=True
         )
-        with (
-            mock.patch.object(file_utils, "is_remote_path", lambda path: True),
-            mock.patch.object(
-                file_utils, "gfile", LazyModule("keras_test_unavailable_module")
-            ),
-        ):
+        with mock.patch.object(file_utils, "is_remote_path", lambda path: True):
             dataset = text_dataset_utils.text_dataset_from_directory(
                 directory,
                 batch_size=8,

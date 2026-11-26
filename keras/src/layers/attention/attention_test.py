@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.testing import test_utils
 
 
@@ -153,7 +153,7 @@ class AttentionTest(testing.TestCase):
         for grad in grads:
             self.assertAllClose(grad, ops.zeros_like(grad))
 
-    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    @pytest.mark.skipif(config.backend() != "torch", reason="Torch only test.")
     def test_attention_fully_masked_row_float16_backward_has_no_nan(self):
         # A torch dtype never compares equal to the string "float16", so this
         # checks that torch also masks float16 scores with 65504 rather than

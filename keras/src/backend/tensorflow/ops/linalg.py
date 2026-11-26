@@ -1,8 +1,6 @@
 import tensorflow as tf
 
-from keras.src.backend import config
 from keras.src.backend.common import dtypes
-from keras.src.backend.common import standardize_dtype
 from keras.src.backend.tensorflow.ops.core import cast
 from keras.src.backend.tensorflow.ops.core import convert_to_tensor
 
@@ -66,11 +64,7 @@ def norm(x, ord=None, axis=None, keepdims=False):
     axis = axis[0] if len(axis) == 1 else axis
     num_axes = 1 if isinstance(axis, int) else len(axis)
 
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
-    x = cast(x, dtype)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
 
     # Ref: jax.numpy.linalg.norm
     if num_axes == 1:

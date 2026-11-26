@@ -4,10 +4,10 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 
 
 class LSTMTest(testing.TestCase):
@@ -375,7 +375,7 @@ class LSTMTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "torch",
+        config.backend() != "torch",
         reason="Reproduces torch stateful LSTM backward (#23462).",
     )
     def test_stateful_backward(self):
@@ -407,3 +407,10 @@ class LSTMTest(testing.TestCase):
                 "exercise the cuDNN path from #23462."
             ),
         )
+
+    def test_numpy_integer_units(self):
+        layer = layers.LSTM(np.int64(3))
+        self.assertIs(type(layer.units), int)
+        self.assertEqual(layer.units, 3)
+        output = layer(np.ones((2, 4, 5), dtype="float32"))
+        self.assertEqual(output.shape, (2, 3))

@@ -5,8 +5,9 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import linalg
 from keras.src.testing.test_utils import named_product
 
@@ -531,7 +532,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
 
             # pivots are defined differently in tensorflow
             # compared to the other backends
-            if backend.backend() == "tensorflow":
+            if config.backend() == "tensorflow":
                 p_matrix = np.eye(m)[pivots]
             else:
                 p_matrix = _pivot_matrix(pivots, m)
@@ -552,7 +553,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
 
         m, n = 4, 3
         x = np.random.rand(m, n)
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             with self.assertRaises(ValueError):
                 linalg.lu_factor(x)
         else:
@@ -563,7 +564,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         # batched case
         m, n = 3, 4
         x = np.random.rand(2, m, n)
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             with self.assertRaises(ValueError):
                 linalg.lu_factor(x)
         else:
@@ -612,7 +613,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         if expected_error is not None:
             # Non-torch backends always throw a ValueError
             expected_error = (
-                expected_error if backend.backend() == "torch" else ValueError
+                expected_error if config.backend() == "torch" else ValueError
             )
             with self.assertRaises(expected_error):
                 linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
@@ -708,13 +709,13 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         # was the source of historical flakiness on the torch backend.
         rng = np.random.default_rng(0)
         a = rng.random((5, 7)).astype("float32")
-        a_symb = backend.KerasTensor((5, 7))
+        a_symb = KerasTensor((5, 7))
         if b_rank == 1:
             b = rng.random((5,)).astype("float32")
-            b_symb = backend.KerasTensor((5,))
+            b_symb = KerasTensor((5,))
         else:
             b = rng.random((5, 4)).astype("float32")
-            b_symb = backend.KerasTensor((5, 4))
+            b_symb = KerasTensor((5, 4))
         out = linalg.lstsq(a, b, rcond=rcond)
         ref_out = np.linalg.lstsq(a, b, rcond=rcond)[0]
         self.assertAllClose(
@@ -760,7 +761,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(rank_loose, 1)
 
         # Symbolic shape propagation.
-        a_symb = backend.KerasTensor((4, 3, 5), dtype="float32")
+        a_symb = KerasTensor((4, 3, 5), dtype="float32")
         self.assertEqual(linalg.matrix_rank(a_symb).shape, (4,))
 
     def test_matrix_power(self):
@@ -833,7 +834,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         a_out = ops.matmul(ops.matmul(a, out), a)
         self.assertAllClose(a_out, a, atol=1e-4, tpu_atol=1e-2, tpu_rtol=1e-2)
 
-        a_symb = backend.KerasTensor(shape, dtype="float32")
+        a_symb = KerasTensor(shape, dtype="float32")
         out_symb = linalg.pinv(a_symb)
         self.assertEqual(out_symb.shape, (shape[1], shape[0]))
 

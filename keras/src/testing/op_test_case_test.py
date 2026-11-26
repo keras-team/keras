@@ -3,15 +3,20 @@ from unittest import mock
 
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
 from keras.src import backend
 from keras.src import ops
+from keras.src import saving
 from keras.src import testing
-from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import standardize_dtype
 from keras.src.ops.operation import Operation
 from keras.src.testing import op_test_case
 from keras.src.testing.op_test_case import X
 from keras.src.testing.op_test_case import named_dtype_combinations
+from keras.src.testing.test_utils import x64_mode_scope
 
 
 class Square(Operation):
@@ -32,6 +37,11 @@ class WrongDtype(Square):
 
 
 class NeedsStaticShape(Square):
+    def call(self, x):
+        if None in x.shape:
+            raise ValueError("Needs a static shape")
+        return super().call(x)
+
     def compute_output_spec(self, x):
         if None in x.shape:
             raise ValueError("Needs a static shape")
@@ -53,6 +63,82 @@ class TupleOfOne(Square):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
+class WrongForUint8(Square):
+    """Returns `x` itself, not its square, for uint8 inputs."""
+
+    def call(self, x):
+        if standardize_dtype(x.dtype) == "uint8":
+            return x
+        return ops.square(x)
+
+
+class SquareInBfloat16(Square):
+    """Squares in bfloat16, which rounds 27 ** 2 = 729 to 728."""
+
+    def call(self, x):
+        return ops.cast(ops.square(x), "bfloat16")
+
+
+class DataDependent(Square):
+    """Branches on a value of `x`, which no compiler can trace."""
+
+    def call(self, x):
+        if float(ops.sum(x)) > 0:
+            return ops.square(x)
+        return x
+
+
+@saving.register_keras_serializable(package="op_test_case_test")
+class NeedsTuple(Operation):
+    """Sums over `axis`, which must be a tuple: JSON turns it into a list."""
+
+    def __init__(self, axis):
+        super().__init__()
+        self.axis = axis
+
+    def call(self, x):
+        if not isinstance(self.axis, tuple):
+            raise TypeError(f"`axis` must be a tuple, got {type(self.axis)}")
+        return ops.sum(x, axis=self.axis)
+
+
+def needs_tuple(x, axis):
+    return NeedsTuple(axis)(x)
+
+
+class RejectsList(Square):
+    """Rejects a Python list, as an op that reads `x.dtype` first does."""
+
+    def __call__(self, x):
+        if isinstance(x, list):
+            raise TypeError("Expected an array or tensor, got a list")
+        return super().__call__(x)
+
+
+class NanGradient(Square):
+    """Adds `sqrt` of an exact zero: the value is 0, its gradient is nan."""
+
+    def call(self, x):
+        return ops.add(ops.square(x), ops.sqrt(x - x))
+
+
+class IgnoresDtype(Square):
+    """Accepts `dtype=`, but ignores it and returns the input dtype."""
+
+    def __call__(self, x, dtype=None):
+        return super().__call__(x)
+
+
+class IgnoresFloatx(Square):
+    """Promotes to `float32`, ignoring `config.floatx()`."""
+
+    def call(self, x):
+        return ops.cast(ops.square(x), "float32")
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype="float32")
+
+
 def methods_of(cls):
     return sorted(n for n in dir(cls) if n.startswith("test"))
 
@@ -71,7 +157,7 @@ def outcomes(cls):
     return out
 
 
-class SquareTest(testing.UnaryOpTest):
+class SquareTest(op_test_case.UnaryOpTest):
     op, op_class = ops.square, Square
     reference_fn, jax_fn = np.square, jnp.square
 
@@ -82,19 +168,28 @@ class OpTestTest(testing.TestCase):
         self.assertEqual(
             [n for n in names if "input_dtypes" not in n],
             [
+                "test_dtype_argument",
                 "test_eager",
                 "test_eager_class",
+                "test_floatx_bfloat16",
+                "test_floatx_float16",
+                "test_functional_model",
+                "test_gradients",
+                "test_input_variants",
+                "test_jit",
+                "test_serialization",
                 "test_symbolic_dynamic",
                 "test_symbolic_static",
+                "test_tf_graph",
             ],
         )
-        self.assertLen([n for n in names if "input_dtypes" in n], 10)
+        self.assertLen([n for n in names if "input_dtypes" in n], 13)
         failed = {
             k: v for k, v in outcomes(SquareTest).items() if "failed" in v
         }
         self.assertEqual(failed, {})
 
-        class Add(testing.BinaryOpTest):
+        class Add(op_test_case.BinaryOpTest):
             op, reference_fn, jax_fn = ops.add, np.add, jnp.add
 
         names = methods_of(Add)
@@ -103,8 +198,9 @@ class OpTestTest(testing.TestCase):
             len(named_dtype_combinations(2)),
         )
         self.assertIn("test_python_scalar_types_int8_left", names)
+        self.assertIn("test_floatx_python_float_bfloat16", names)
 
-        class Sum(testing.ReductionOpTest):
+        class Sum(op_test_case.ReductionOpTest):
             op, reference_fn, jax_fn = ops.sum, np.sum, jnp.sum
 
         self.assertLen(Sum.cases, 12)
@@ -112,13 +208,16 @@ class OpTestTest(testing.TestCase):
 
     def test_base_classes_are_not_collected(self):
         for cls in (
-            testing.OpTest,
-            testing.UnaryOpTest,
-            testing.BinaryOpTest,
-            testing.ReductionOpTest,
+            op_test_case.OpTest,
+            op_test_case.UnaryOpTest,
+            op_test_case.BinaryOpTest,
+            op_test_case.ReductionOpTest,
         ):
             self.assertFalse(cls.__test__)
         self.assertTrue(SquareTest.__test__)
+
+    def test_op_test_marker(self):
+        self.assertEqual([m.name for m in SquareTest.pytestmark], ["op_test"])
 
     def test_override_by_name(self):
         class Case(SquareTest):
@@ -134,11 +233,20 @@ class OpTestTest(testing.TestCase):
         self.assertAllClose(case.op(X), case.reference_fn(X))
         self.assertAllClose(case.jax_fn(X), np.square(X))
 
+    def test_16_bit_outputs_use_their_dtype_tolerance(self):
+        case = SquareTest("test_eager")
+        inputs = (np.array([27], dtype="int32"),)
+        case.check_eager(SquareInBfloat16(), np.square, inputs, {})
+        with mock.patch.dict(op_test_case._TOLERANCES, clear=True):
+            with self.assertRaisesRegex(AssertionError, "Unexpected eager"):
+                case.check_eager(SquareInBfloat16(), np.square, inputs, {})
+
     def test_no_op_class_and_no_arrays(self):
-        class Ones(testing.OpTest):
+        class Ones(op_test_case.OpTest):
             op, reference_fn = ops.ones, np.ones
             inputs = ((2, 3),)
 
+        no_jit = config.backend() not in ("jax", "torch", "tensorflow")
         self.assertEqual(
             outcomes(Ones),
             {
@@ -150,11 +258,143 @@ class OpTestTest(testing.TestCase):
                 "test_symbolic_dynamic": (
                     "skipped: No array inputs, so no symbolic path"
                 ),
+                "test_jit": (
+                    f"skipped: No JIT compiler on the {config.backend()} "
+                    "backend"
+                    if no_jit
+                    else "passed"
+                ),
+                "test_functional_model": (
+                    "skipped: No array inputs, so no model inputs"
+                ),
+                "test_serialization": (
+                    "skipped: No array inputs, so no model inputs"
+                ),
+                "test_input_variants": (
+                    "skipped: No array inputs, so no input variants"
+                ),
+                "test_gradients": (
+                    "skipped: No array inputs, so no gradients"
+                    if backend.SUPPORTS_GRADIENT
+                    else f"skipped: No gradients on the {config.backend()} "
+                    "backend"
+                ),
+                "test_dtype_argument": "passed",
+                "test_tf_graph": (
+                    "skipped: No array inputs, so no unknown dimensions"
+                    if config.backend() == "tensorflow"
+                    else "skipped: TensorFlow only"
+                ),
+                "test_floatx_bfloat16": "passed",
+                "test_floatx_float16": "passed",
             },
         )
 
+    def test_data_dependent_op_fails_jit(self):
+        class Case(op_test_case.OpTest):
+            op, reference_fn, inputs = DataDependent(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        if config.backend() not in ("jax", "torch", "tensorflow"):
+            self.assertRegex(out["test_jit"], "^skipped: No JIT compiler")
+        else:
+            self.assertRegex(out["test_jit"], "^failed: ")
+
+    def test_tuple_argument_lost_in_json_fails(self):
+        class Case(op_test_case.OpTest):
+            op, op_class, reference_fn = needs_tuple, NeedsTuple, np.sum
+            inputs, kwargs = (X,), {"axis": (0,)}
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        self.assertEqual(out["test_eager_class"], "passed")
+        self.assertRegex(out["test_serialization"], "^failed: ")
+
+    def test_list_rejected_fails_input_variants(self):
+        class Case(op_test_case.OpTest):
+            op, reference_fn, inputs = RejectsList(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        self.assertRegex(
+            out["test_input_variants"],
+            "^failed: TypeError: Expected an array or tensor, got a list",
+        )
+
+    def test_nan_gradient_fails(self):
+        class Case(op_test_case.OpTest):
+            op, reference_fn, inputs = NanGradient(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        if not backend.SUPPORTS_GRADIENT:
+            self.assertRegex(out["test_gradients"], "^skipped: No gradients")
+            return
+        self.assertRegex(out["test_gradients"], "^failed: ")
+        with self.assertRaisesRegex(
+            AssertionError,
+            r"Non-finite gradient of input 0 for inputs float32\[2, 3\]",
+        ):
+            Case("test_eager").check_gradients((X,), {})
+
+    def test_dtype_argument_ignored_fails(self):
+        self.assertEqual(
+            outcomes(SquareTest)["test_dtype_argument"],
+            "skipped: No `dtype` argument",
+        )
+
+        class Case(op_test_case.OpTest):
+            op, reference_fn, inputs = IgnoresDtype(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        self.assertRegex(out["test_dtype_argument"], "^failed: ")
+        with self.assertRaisesRegex(
+            AssertionError, "Received: x.dtype=int32 and dtype=float16"
+        ):
+            Case("test_eager").check_dtype_argument((X,), {})
+
+    def test_static_shape_required_fails_tf_graph(self):
+        class Case(op_test_case.OpTest):
+            op, reference_fn, inputs = NeedsStaticShape(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        if config.backend() == "tensorflow":
+            self.assertEqual(out["test_jit"], "passed")
+            self.assertRegex(
+                out["test_tf_graph"],
+                "ValueError: Needs a static shape",
+            )
+        else:
+            self.assertEqual(out["test_tf_graph"], "skipped: TensorFlow only")
+
+    def test_floatx_ignored_fails(self):
+        class Case(op_test_case.OpTest):
+            op, reference_fn, inputs = IgnoresFloatx(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        self.assertEqual(out["test_symbolic_static"], "passed")
+        self.assertRegex(out["test_floatx_bfloat16"], "^failed: ")
+        self.assertRegex(out["test_floatx_float16"], "^failed: ")
+        with self.assertRaisesRegex(
+            AssertionError, "Float output under floatx=bfloat16"
+        ):
+            Case("test_eager").check_floatx("bfloat16", (X,), {})
+        self.assertEqual(config.floatx(), "float32")
+
+    def test_op_model(self):
+        model = op_test_case._op_model(ops.add, (X, X[:1]), {})
+        self.assertLen(model.inputs, 2)
+        self.assertEqual(model.inputs[1].shape, (1, 3))
+        self.assertEqual(model.inputs[1].dtype, "int32")
+        self.assertEqual(model.output.shape, (2, 3))
+        self.assertAllClose(model([X, X[:1]]), X + X[:1])
+
     def test_disabled_dynamic_checks_are_skipped(self):
-        class Case(testing.OpTest):
+        class Case(op_test_case.OpTest):
             op, reference_fn = NeedsStaticShape(), np.square
             inputs = (X,)
             run_dynamic_shape_checks = False
@@ -166,7 +406,7 @@ class OpTestTest(testing.TestCase):
         )
 
     def test_wrong_symbolic_rank_fails(self):
-        class Case(testing.OpTest):
+        class Case(op_test_case.OpTest):
             op, op_class = WrongRank(), WrongRank
             reference_fn = np.square
             inputs = (X,)
@@ -201,7 +441,7 @@ class OpTestTest(testing.TestCase):
         )
 
     def test_structure_mismatch_fails(self):
-        class Case(testing.OpTest):
+        class Case(op_test_case.OpTest):
             op, reference_fn = TupleOfOne(), np.square
             inputs = (X,)
 
@@ -210,7 +450,7 @@ class OpTestTest(testing.TestCase):
         self.assertRegex(out["test_symbolic_static"], "^failed: ")
 
     def test_symbolic_dtype_mismatch_fails(self):
-        class Case(testing.OpTest):
+        class Case(op_test_case.OpTest):
             op, reference_fn = WrongDtype(), np.square
             inputs = (X,)
 
@@ -222,7 +462,7 @@ class OpTestTest(testing.TestCase):
 
 class CheckInputDtypesTest(testing.TestCase):
     def test_dtype_mismatch_vs_jax_fails(self):
-        class Case(testing.UnaryOpTest):
+        class Case(op_test_case.UnaryOpTest):
             op, reference_fn, jax_fn = CastsToInt32(), np.square, jnp.square
 
         self.assertRegex(
@@ -230,8 +470,43 @@ class CheckInputDtypesTest(testing.TestCase):
             r"Output dtype differs from JAX for inputs uint8\[2, 3\]",
         )
 
+    @pytest.mark.skipif(
+        config.backend() == "tensorflow",
+        reason="TensorFlow has no `x64_mode='off'`",
+    )
+    def test_capped_op_fails_only_in_explicit_x64(self):
+        class Case(op_test_case.UnaryOpTest):
+            op, reference_fn, jax_fn = CastsToInt32(), np.square, jnp.square
+
+        with x64_mode_scope("off"):
+            off = outcomes(Case)["test_input_dtypes_int64"]
+        with x64_mode_scope("explicit_x64"):
+            explicit = outcomes(Case)["test_input_dtypes_int64"]
+        self.assertNotIn("failed", off)  # Passed on JAX, skipped elsewhere.
+        self.assertRegex(
+            explicit, r"Output dtype differs from JAX for inputs int64\[2, 3\]"
+        )
+
+    def test_wrong_values_for_one_dtype_fail(self):
+        class Case(op_test_case.UnaryOpTest):
+            op, reference_fn, jax_fn = WrongForUint8(), np.square, jnp.square
+
+        case = Case("test_eager")
+        case.check_input_dtypes(("int8",))
+        with self.assertRaisesRegex(AssertionError, "Unexpected eager output"):
+            case.check_input_dtypes(("uint8",))
+
+    def test_inputs_must_fit_the_dtype(self):
+        case = SquareTest("test_eager")
+        inputs = (np.array([-1, 6]),)
+        case.check_input_dtypes(("int8",), inputs, {})
+        with self.assertRaisesRegex(AssertionError, r"\[-1, 6\] do not fit"):
+            case.check_input_dtypes(("uint8",), inputs, {})
+        with self.assertRaisesRegex(AssertionError, "do not fit float16"):
+            case.check_input_dtypes(("float16",), (np.array([1e5]),), {})
+
     def test_skipped_dtype_has_reason(self):
-        skipped = {backend.backend(): {"int8": "no int8 here"}}
+        skipped = {config.backend(): {"int8": "no int8 here"}}
         with mock.patch.dict(op_test_case._SKIPPED_DTYPES, skipped):
             self.assertEqual(
                 outcomes(SquareTest)["test_input_dtypes_int8"],
@@ -244,7 +519,7 @@ class CheckInputDtypesTest(testing.TestCase):
             case.check_input_dtypes(("int8",), (X, X), {})
 
     def test_python_scalar_input(self):
-        class Add(testing.BinaryOpTest):
+        class Add(op_test_case.BinaryOpTest):
             op, reference_fn, jax_fn = ops.add, np.add, jnp.add
 
         out = outcomes(Add)
@@ -293,10 +568,6 @@ class NamedDtypeCombinationsTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "Expected 2 dtype pools"):
             named_dtype_combinations(2, dtypes=[self.POOL] * 3)
 
-    def test_binary_pool_default(self):
-        is_torch = backend.backend() == "torch"
-        self.assertEqual(
-            "float64" in op_test_case.BINARY_INPUT_DTYPES, is_torch
-        )
-        self.assertLen(named_dtype_combinations(1), 10)
-        self.assertLen(named_dtype_combinations(2), 66 if is_torch else 55)
+    def test_default_pool(self):
+        self.assertLen(named_dtype_combinations(1), 13)
+        self.assertLen(named_dtype_combinations(2), 91)

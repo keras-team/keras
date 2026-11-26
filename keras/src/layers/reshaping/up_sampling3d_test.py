@@ -4,6 +4,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 
 
 class UpSampling3dTest(testing.TestCase):
@@ -120,7 +121,7 @@ class UpSampling3dTest(testing.TestCase):
                 ],
             ]
         )
-        if backend.config.image_data_format() == "channels_first":
+        if config.image_data_format() == "channels_first":
             expected_output = expected_output.transpose((0, 4, 1, 2, 3))
             x = x.transpose((0, 4, 1, 2, 3))
         self.assertAllClose(
