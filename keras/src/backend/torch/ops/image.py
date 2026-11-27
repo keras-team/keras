@@ -441,11 +441,12 @@ def affine_transform(
 
     batch_size = images.shape[0]
 
-    # get indices
+    # Get the (height, width) indices. The channel axis has size 1 because
+    # every channel of a pixel is sampled at the same location.
     meshgrid = torch.meshgrid(
         *[
             torch.arange(size, dtype=transform.dtype, device=transform.device)
-            for size in images.shape[1:]
+            for size in (*images.shape[1:3], 1)
         ],
         indexing="ij",
     )
@@ -481,18 +482,13 @@ def affine_transform(
         offset, shape=(*offset.shape, 1, 1, 1)
     )
 
-    # Note: torch.stack is faster than torch.vmap when the batch size is small.
-    affined = torch.stack(
-        [
-            map_coordinates(
-                images[i],
-                coordinates[i],
-                order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
-                fill_mode=fill_mode,
-                fill_value=fill_value,
-            )
-            for i in range(len(images))
-        ],
+    affined = _map_coordinates_2d(
+        images,
+        coordinates[:, 0, :, :, 0],
+        coordinates[:, 1, :, :, 0],
+        order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+        fill_mode=fill_mode,
+        fill_value=fill_value,
     )
 
     if data_format == "channels_first":
@@ -891,6 +887,72 @@ def map_coordinates(
     if _is_integer(input_arr):
         result = result if _is_integer(result) else torch.round(result)
     return result.to(input_arr.dtype)
+
+
+def _map_coordinates_2d(images, y, x, order, fill_mode, fill_value):
+    """Samples a batch of images at the given `(y, x)` coordinates.
+
+    This is `map_coordinates` specialized for image batches: it interpolates
+    over the height and width axes only and gathers all the images at once.
+
+    Args:
+        images: Tensor of shape `(batch, height, width, channels)`.
+        y: Float tensor of shape `(batch, height, width)`, the row to sample
+            for each output pixel.
+        x: Float tensor of shape `(batch, height, width)`, the column to
+            sample for each output pixel.
+        order: `0` for nearest interpolation, `1` for bilinear.
+        fill_mode: One of the keys of `_INDEX_FIXERS`.
+        fill_value: Value used outside the image when `fill_mode="constant"`.
+
+    Returns:
+        Tensor with the same shape and dtype as `images`.
+    """
+    batch_size, height, width = images.shape[0:3]
+    if isinstance(fill_value, (int, float)) and _is_integer(images):
+        fill_value = int(fill_value)
+    index_fixer = _INDEX_FIXERS[fill_mode]
+    if order == 0:
+        interp_fun = _nearest_indices_and_weights
+    else:
+        interp_fun = _linear_indices_and_weights
+
+    # View the images as one long list of pixels, so that a pixel can be
+    # looked up with a single index: `(batch * height + y) * width + x`.
+    pixels = images.reshape(batch_size * height * width, -1)
+    batch_offset = torch.arange(
+        batch_size, dtype=torch.int64, device=images.device
+    ).reshape(batch_size, 1, 1) * (height * width)
+
+    result = None
+    for y_index, y_weight in interp_fun(y):
+        for x_index, x_weight in interp_fun(x):
+            pixel_index = (
+                batch_offset
+                + index_fixer(y_index, height) * width
+                + index_fixer(x_index, width)
+            )
+            contribution = pixels.index_select(
+                0, pixel_index.reshape(-1)
+            ).reshape(images.shape)
+            if fill_mode == "constant":
+                valid = (
+                    (0 <= y_index)
+                    & (y_index < height)
+                    & (0 <= x_index)
+                    & (x_index < width)
+                )
+                contribution = torch.where(
+                    valid.unsqueeze(-1), contribution, fill_value
+                )
+            if order != 0:
+                # Add a channel axis so the weight broadcasts.
+                weight = (y_weight * x_weight).unsqueeze(-1)
+                contribution = weight * contribution
+            result = contribution if result is None else result + contribution
+    if _is_integer(images):
+        result = result if _is_integer(result) else torch.round(result)
+    return result.to(images.dtype)
 
 
 def gaussian_blur(
