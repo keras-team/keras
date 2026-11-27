@@ -950,12 +950,12 @@ class Layer(BackendLayer, Operation):
         )
 
         # Used to avoid expensive `tree` operations in the most common case.
-        if (
+        if self._convert_input_args and (
             kwargs_may_need_convert
             or len(args) != 1
             or not is_backend_tensor_or_symbolic(args[0], allow_none=False)
             or standardize_dtype(args[0].dtype) != self.input_dtype
-        ) and self._convert_input_args:
+        ):
             args = tree.map_structure(maybe_convert, args)
             kwargs = tree.map_structure(maybe_convert, kwargs)
         else:
