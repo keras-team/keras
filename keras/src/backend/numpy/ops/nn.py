@@ -985,6 +985,9 @@ def binary_crossentropy(target, output, from_logits=False):
     if from_logits:
         output = sigmoid(output)
 
+    # `1 - epsilon` rounds to `1.0` in half precision, so compute in `float32`.
+    output = output.astype("float32") if output.dtype.itemsize < 4 else output
+    target = target.astype(output.dtype)
     output = np.clip(output, config.epsilon(), 1.0 - config.epsilon())
     bce = target * np.log(output)
     bce = bce + (1.0 - target) * np.log(1.0 - output)

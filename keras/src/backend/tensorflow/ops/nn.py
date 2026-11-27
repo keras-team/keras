@@ -1610,11 +1610,17 @@ def binary_crossentropy(target, output, from_logits=False):
             labels=target, logits=output
         )
 
-    # Compute cross entropy from probabilities.
+    # Compute cross entropy from probabilities. `1 - epsilon` rounds to `1.0`
+    # in half precision, which turns `log(1 - output)` into `-inf` and the loss
+    # into `nan`, so compute in `float32`.
+    output_dtype = standardize_dtype(output.dtype)
+    if output_dtype in ("float16", "bfloat16"):
+        output = cast(output, "float32")
+        target = cast(target, "float32")
     output = tf.clip_by_value(output, config.epsilon(), 1.0 - config.epsilon())
     bce = target * tf.math.log(output)
     bce += (1 - target) * tf.math.log(1 - output)
-    return -bce
+    return cast(-bce, output_dtype)
 
 
 def moments(x, axes, keepdims=False, synchronized=False):

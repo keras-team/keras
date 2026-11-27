@@ -2495,6 +2495,23 @@ class NNOpsCorrectnessTest(testing.TestCase):
             np.array([[1.206961], [0.778139], [1.061154], [0.913015]]),
         )
 
+    @parameterized.parameters("float16", "bfloat16")
+    def test_binary_crossentropy_half_precision_saturated(self, dtype):
+        target = np.array([[1.0], [0.0], [1.0], [0.0]])
+        output = np.array([[1.0], [0.0], [0.7], [0.2]])
+        expected = knn.binary_crossentropy(
+            ops.convert_to_tensor(target, "float32"),
+            ops.convert_to_tensor(output, "float32"),
+        )
+        result = knn.binary_crossentropy(
+            ops.convert_to_tensor(target, dtype),
+            ops.convert_to_tensor(output, dtype),
+        )
+        self.assertEqual(standardize_dtype(result.dtype), dtype)
+        self.assertAllClose(
+            ops.cast(result, "float32"), expected, atol=5e-2, rtol=5e-2
+        )
+
     @parameterized.product(
         shape=[(4, 1), (4, 5, 1), (4, 1, 1), (4, 5, 1, 1), (2, 1, 3)],
         from_logits=[True, False],
