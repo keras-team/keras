@@ -1084,6 +1084,14 @@ def binary_crossentropy(target, output, from_logits=False):
             output, target, reduction="none"
         )
 
+    dtype = output.dtype
+    if standardize_dtype(dtype) in ("float16", "bfloat16"):
+        compute_dtype = torch.float32
+    else:
+        compute_dtype = dtype
+    output = output.to(compute_dtype)
+    target = target.to(compute_dtype)
+
     output = torch.clip(output, config.epsilon(), 1.0 - config.epsilon())
     # Before torch 2.10, the MPS `binary_cross_entropy` kernel squeezes every
     # size-1 dimension of its inputs but not of `grad_output`, so the backward
@@ -1093,7 +1101,7 @@ def binary_crossentropy(target, output, from_logits=False):
     loss = tnn.binary_cross_entropy(
         output.reshape(-1), target.reshape(-1), reduction="none"
     )
-    return loss.reshape(output.shape)
+    return loss.reshape(output.shape).to(dtype)
 
 
 def moments(x, axes, keepdims=False, synchronized=False):

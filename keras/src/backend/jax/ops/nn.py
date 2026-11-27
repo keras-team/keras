@@ -1065,10 +1065,18 @@ def binary_crossentropy(target, output, from_logits=False):
         log_neg_logits = jax.nn.log_sigmoid(-output)
         return -1.0 * target * log_logits - (1.0 - target) * log_neg_logits
 
+    dtype = output.dtype
+    if standardize_dtype(dtype) in ("float16", "bfloat16"):
+        compute_dtype = "float32"
+    else:
+        compute_dtype = dtype
+    output = cast(output, compute_dtype)
+    target = cast(target, compute_dtype)
+
     output = jnp.clip(output, config.epsilon(), 1.0 - config.epsilon())
     bce = target * jnp.log(output)
     bce += (1.0 - target) * jnp.log(1.0 - output)
-    return -bce
+    return cast(-bce, dtype)
 
 
 def moments(x, axes, keepdims=False, synchronized=False):

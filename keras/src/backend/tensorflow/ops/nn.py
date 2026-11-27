@@ -1611,10 +1611,18 @@ def binary_crossentropy(target, output, from_logits=False):
         )
 
     # Compute cross entropy from probabilities.
+    dtype = output.dtype
+    if standardize_dtype(dtype) in ("float16", "bfloat16"):
+        compute_dtype = "float32"
+    else:
+        compute_dtype = dtype
+    output = tf.cast(output, compute_dtype)
+    target = tf.cast(target, compute_dtype)
+
     output = tf.clip_by_value(output, config.epsilon(), 1.0 - config.epsilon())
     bce = target * tf.math.log(output)
     bce += (1 - target) * tf.math.log(1 - output)
-    return -bce
+    return tf.cast(-bce, dtype)
 
 
 def moments(x, axes, keepdims=False, synchronized=False):
