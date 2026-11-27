@@ -1733,10 +1733,23 @@ def dot_product_attention(
     platform = jax.devices()[0].platform
     is_tpu = platform == "tpu"
 
+    # Flash attention and `jax.nn.dot_product_attention` require the values to
+    # have the same head size as the keys, which is not the case when
+    # `value_dim != key_dim`.
+    same_head_size = key.shape[-1] == value.shape[-1]
+
     # Determine flash attention compatibility
     if flash_attention is None:
-        flash_attention = _can_use_flash_attention(query, key, value, bias)
+        flash_attention = same_head_size and _can_use_flash_attention(
+            query, key, value, bias
+        )
     elif flash_attention is True:
+        if not same_head_size:
+            raise ValueError(
+                "Flash attention requires the keys and values to have the "
+                f"same head size. Received key shape {key.shape} and value "
+                f"shape {value.shape}."
+            )
         # Use `raise_error=True` to provide more details if the inputs failed to
         # use flash attention
         _can_use_flash_attention(query, key, value, bias, raise_error=True)
@@ -1832,10 +1845,6 @@ def dot_product_attention(
                 )
                 flash_attention = False
 
-    # `jax.nn.dot_product_attention` requires the values to have the same head
-    # size as the keys, which is not the case when `value_dim != key_dim`.
-    same_head_size = key.shape[-1] == value.shape[-1]
-
     # JAX native dot_product_attention for GPU or fallback for TPU
     if same_head_size and hasattr(jax.nn, "dot_product_attention"):
         impls = ["cudnn", "xla"] if flash_attention else ["xla"]
@@ -1857,12 +1866,6 @@ def dot_product_attention(
                     "jax.nn.dot_product_attention."
                 )
 
-    if flash_attention and not same_head_size:
-        raise ValueError(
-            "Flash attention requires the keys and values to have the same "
-            f"head size. Received key shape {key.shape} and value shape "
-            f"{value.shape}."
-        )
     if flash_attention:
         raise RuntimeError(
             "Flash attention is not supported in your current JAX version. "

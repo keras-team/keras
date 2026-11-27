@@ -3143,26 +3143,40 @@ class NNOpsCorrectnessTest(testing.TestCase):
             tpu_rtol=1e-2,
         )
 
-    @parameterized.named_parameters(
-        named_product(is_causal=(False, True), key_heads=(4, 2))
-    )
-    def test_dot_product_attention_value_depth(self, is_causal, key_heads):
+    @parameterized.named_parameters(named_product(is_causal=(False, True)))
+    def test_dot_product_attention_value_depth(self, is_causal):
         # The values can have a different head size than the queries and keys.
-        if key_heads != 4 and backend.backend() == "numpy":
-            self.skipTest("The numpy backend does not support grouped keys.")
         rng = np.random.RandomState(0)
         query = rng.uniform(size=(2, 3, 4, 8)).astype("float32")
-        key = rng.uniform(size=(2, 3, key_heads, 8)).astype("float32")
-        value = rng.uniform(size=(2, 3, key_heads, 5)).astype("float32")
+        key = rng.uniform(size=(2, 3, 4, 8)).astype("float32")
+        value = rng.uniform(size=(2, 3, 4, 5)).astype("float32")
         outputs = knn.dot_product_attention(
             query, key, value, is_causal=is_causal
         )
         self.assertEqual(tuple(outputs.shape), (2, 3, 4, 5))
-        group = 4 // key_heads
+        expected = _dot_product_attention(
+            query, key, value, is_causal=is_causal
+        )
+        self.assertAllClose(outputs, expected, atol=1e-5)
+
+    @parameterized.named_parameters(named_product(is_causal=(False, True)))
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="The numpy backend does not support grouped keys.",
+    )
+    def test_dot_product_attention_gqa_value_depth(self, is_causal):
+        rng = np.random.RandomState(0)
+        query = rng.uniform(size=(2, 3, 4, 8)).astype("float32")
+        key = rng.uniform(size=(2, 3, 2, 8)).astype("float32")
+        value = rng.uniform(size=(2, 3, 2, 5)).astype("float32")
+        outputs = knn.dot_product_attention(
+            query, key, value, is_causal=is_causal
+        )
+        self.assertEqual(tuple(outputs.shape), (2, 3, 4, 5))
         expected = _dot_product_attention(
             query,
-            np.repeat(key, group, axis=2),
-            np.repeat(value, group, axis=2),
+            np.repeat(key, 2, axis=2),
+            np.repeat(value, 2, axis=2),
             is_causal=is_causal,
         )
         self.assertAllClose(outputs, expected, atol=1e-5)
