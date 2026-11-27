@@ -1733,10 +1733,23 @@ def dot_product_attention(
     platform = jax.devices()[0].platform
     is_tpu = platform == "tpu"
 
+    # Flash attention and `jax.nn.dot_product_attention` require the values to
+    # have the same head size as the keys, which is not the case when
+    # `value_dim != key_dim`.
+    same_head_size = key.shape[-1] == value.shape[-1]
+
     # Determine flash attention compatibility
     if flash_attention is None:
-        flash_attention = _can_use_flash_attention(query, key, value, bias)
+        flash_attention = same_head_size and _can_use_flash_attention(
+            query, key, value, bias
+        )
     elif flash_attention is True:
+        if not same_head_size:
+            raise ValueError(
+                "Flash attention requires the keys and values to have the "
+                f"same head size. Received key shape {key.shape} and value "
+                f"shape {value.shape}."
+            )
         # Use `raise_error=True` to provide more details if the inputs failed to
         # use flash attention
         _can_use_flash_attention(query, key, value, bias, raise_error=True)
@@ -1833,7 +1846,7 @@ def dot_product_attention(
                 flash_attention = False
 
     # JAX native dot_product_attention for GPU or fallback for TPU
-    if hasattr(jax.nn, "dot_product_attention"):
+    if same_head_size and hasattr(jax.nn, "dot_product_attention"):
         impls = ["cudnn", "xla"] if flash_attention else ["xla"]
         for impl in impls:
             try:
@@ -1865,7 +1878,7 @@ def dot_product_attention(
 
     # Fallback to custom XLA implementation
     # This is the reference implementation from jax.nn.dot_product_attention
-    output_shape = query.shape
+    output_shape = query.shape[:-1] + (value.shape[-1],)
     _, _, K, H = key.shape
     scale = (1.0 / jnp.sqrt(H)) if scale is None else scale
 

@@ -534,6 +534,26 @@ class MultiHeadAttentionTest(testing.TestCase):
                 else:
                     self.assertEqual(scores[i, j], 0.0)
 
+    @parameterized.named_parameters(
+        ("key_larger", 3, 5), ("value_larger", 4, 2)
+    )
+    def test_value_dim_different_from_key_dim(self, key_dim, value_dim):
+        layer = layers.MultiHeadAttention(
+            num_heads=2, key_dim=key_dim, value_dim=value_dim
+        )
+        x = np.random.RandomState(0).randn(2, 5, 8).astype("float32")
+        for use_causal_mask in (False, True):
+            outputs = layer(x, x, use_causal_mask=use_causal_mask)
+            self.assertEqual(tuple(outputs.shape), (2, 5, 8))
+            # Returning the scores goes through the explicit softmax path.
+            expected, _ = layer(
+                x,
+                x,
+                use_causal_mask=use_causal_mask,
+                return_attention_scores=True,
+            )
+            self.assertAllClose(outputs, expected, atol=1e-5)
+
     def test_causal_only_fast_path(self):
         # When `use_causal_mask=True` is the only mask source, the layer
         # should route through `dot_product_attention(is_causal=True)` and
