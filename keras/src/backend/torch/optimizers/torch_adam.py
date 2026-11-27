@@ -16,12 +16,23 @@ class Adam(torch_parallel_optimizer.TorchParallelOptimizer, optimizers.Adam):
         variables = [v.value for v in variables]
 
         dtype = variables[0].dtype
-        lr = ops.cast(learning_rate, dtype)
-        local_step = ops.cast(self.iterations + 1, dtype)
+        # Compute the step size in at least `float32`, since `beta_2=0.999` is
+        # rounded to `1.0` in `bfloat16`.
+        scalar_dtype = (
+            "float32" if dtype in (torch.float16, torch.bfloat16) else dtype
+        )
+        lr = ops.cast(learning_rate, scalar_dtype)
+        local_step = ops.cast(self.iterations + 1, scalar_dtype)
 
-        beta_1_power = ops.power(ops.cast(self.beta_1, dtype), local_step)
-        beta_2_power = ops.power(ops.cast(self.beta_2, dtype), local_step)
-        alpha = lr * ops.sqrt(1 - beta_2_power) / (1 - beta_1_power)
+        beta_1_power = ops.power(
+            ops.cast(self.beta_1, scalar_dtype), local_step
+        )
+        beta_2_power = ops.power(
+            ops.cast(self.beta_2, scalar_dtype), local_step
+        )
+        alpha = ops.cast(
+            lr * ops.sqrt(1 - beta_2_power) / (1 - beta_1_power), dtype
+        )
 
         m_list = [
             self._momentums[self._get_variable_index(variable)].value

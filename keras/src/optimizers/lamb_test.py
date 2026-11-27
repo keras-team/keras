@@ -74,3 +74,18 @@ class LambTest(testing.TestCase):
         grad = [np.array([100.0, 100.0])]
         clipped_grad = optimizer._clip_gradients(grad)
         self.assertAllClose(clipped_grad[0], [1.0, 1.0])
+
+    def test_half_precision_variables(self):
+        changes = {}
+        for dtype in ("float32", "float16", "bfloat16"):
+            optimizer = Lamb(learning_rate=0.01)
+            var = backend.Variable([1.0, -2.0, 3.0], dtype=dtype)
+            grad = ops.cast(ops.array([0.1, -0.2, 0.3]), dtype)
+            for _ in range(20):
+                optimizer.apply([grad], [var])
+            new = ops.convert_to_numpy(ops.cast(var, "float32"))
+            changes[dtype] = np.abs(new - [1.0, -2.0, 3.0]).mean()
+        # `beta_2=0.999` rounds to 1.0 in bfloat16, which used to freeze the
+        # variable.
+        self.assertAllClose(changes["float16"], changes["float32"], rtol=0.1)
+        self.assertAllClose(changes["bfloat16"], changes["float32"], rtol=0.3)
