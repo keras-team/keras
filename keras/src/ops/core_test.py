@@ -1627,6 +1627,40 @@ class CoreOpsCorrectnessTest(testing.TestCase):
                 msg=f"Failed for dynamic length={length}",
             )
 
+    @pytest.mark.skipif(
+        config.backend() != "tensorflow",
+        reason="Dynamic scan fallback is TF-specific.",
+    )
+    @parameterized.named_parameters(
+        ("both_dynamic", None, None, (0, 3, 5)),
+        ("first_static", 5, None, (5,)),
+        ("second_static", None, 5, (5,)),
+    )
+    def test_associative_scan_tf_function_dynamic_structured_input(
+        self, x_length, y_length, lengths
+    ):
+        import tensorflow as tf
+
+        @tf.function(
+            input_signature=[
+                tf.TensorSpec([x_length, 4]),
+                tf.TensorSpec([y_length, 4]),
+            ]
+        )
+        def run_scan(x, y):
+            return core.associative_scan(
+                f=lambda a, b: (a[0] + b[0], a[1] + b[1]),
+                elems=(x, y),
+                axis=0,
+            )
+
+        for length in lengths:
+            x = np.arange(length * 4, dtype="float32").reshape(length, 4)
+            y = x + 1
+            result_x, result_y = run_scan(x, y)
+            self.assertAllClose(result_x, np.cumsum(x, axis=0))
+            self.assertAllClose(result_y, np.cumsum(y, axis=0))
+
 
 class CoreOpsDtypeTest(testing.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
