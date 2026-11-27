@@ -315,6 +315,13 @@ class NormalizationTest(testing.TestCase):
         self.assertAllClose(
             model.predict_on_batch(x2), reference(x2), atol=1e-5
         )
+        self.assertAllEqual(layer.mean, reference.mean)
+        self.assertAllEqual(layer.variance, reference.variance)
+
+    def test_mean_and_variance_before_build(self):
+        layer = layers.Normalization()
+        self.assertIsNone(layer.mean)
+        self.assertIsNone(layer.variance)
 
     def test_adapt_list_of_batches(self):
         x = np.random.random((32, 4)).astype("float32")
