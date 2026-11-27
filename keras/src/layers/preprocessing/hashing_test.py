@@ -22,9 +22,6 @@ class ArrayLike:
         return np.array(self.values, dtype=dtype)
 
 
-@pytest.mark.skipif(
-    config.backend() == "numpy", reason="Broken with NumPy backend."
-)
 class HashingTest(testing.TestCase):
     def test_config(self):
         layer = layers.Hashing(

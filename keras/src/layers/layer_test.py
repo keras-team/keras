@@ -574,6 +574,20 @@ class LayerTest(testing.TestCase):
         self.assertLen(layer.trainable_variables, 2)
         self.assertLen(layer.non_trainable_variables, 0)
 
+    def test_call_with_unconverted_non_standard_dtype(self):
+        class NonConvertingLayer(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self._convert_input_args = False
+
+            def call(self, inputs):
+                return inputs
+
+        layer = NonConvertingLayer()
+        str_arr = np.array(["hello", "world"])
+        output = layer(str_arr)
+        self.assertAllEqual(output, str_arr)
+
     def test_build_on_call(self):
         class LayerWithUnbuiltState(layers.Layer):
             def __init__(self, units):
