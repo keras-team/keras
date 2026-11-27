@@ -2133,13 +2133,12 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         kimage.affine_transform(x, transform)
         self.assertAllClose(transform_values, transform)
 
+    @pytest.mark.skipif(
+        backend.backend() in ("numpy", "jax"),
+        reason="affine_transform interpolates along the channel axis on this "
+        "backend, so a non-finite value leaks into the neighboring channel.",
+    )
     def test_affine_transform_channels_are_independent(self):
-        if backend.backend() not in ("tensorflow", "torch"):
-            self.skipTest(
-                f"In {backend.backend()} backend, affine_transform "
-                "interpolates along the channel axis, so a non-finite value "
-                "in one channel leaks into the neighboring channel"
-            )
         x = np.random.uniform(size=(2, 10, 10, 3)).astype("float32")
         x[..., 2] = np.inf
         # Identity transform: the output must be equal to the input.
