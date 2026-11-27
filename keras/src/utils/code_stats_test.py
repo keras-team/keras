@@ -34,6 +34,13 @@ class TestCountLoc(test_case.TestCase):
         loc = count_loc(self.test_dir, extensions=(".py",))
         self.assertEqual(loc, 0)
 
+    def test_multiple_extensions(self):
+        self.create_file("sample.py", "print('Hello')\n")
+        self.create_file("sample.md", "Hello\n")
+        self.create_file("ignored_test.md", "Hello\n")
+        loc = count_loc(self.test_dir, extensions=(".py", ".md"))
+        self.assertEqual(loc, 2)
+
     def test_comment_lines(self):
         self.create_file(
             "sample.py", "# Comment\nprint('Hello')\n# Another comment\n"

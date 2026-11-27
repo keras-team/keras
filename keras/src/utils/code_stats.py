@@ -12,17 +12,11 @@ def count_loc(directory, exclude=("_test",), extensions=(".py",), verbose=0):
             continue
 
         for fname in fnames:
-            skip = False
-            for ext in extensions:
-                if not fname.endswith(ext):
-                    skip = True
-                    break
-
-                for ex in exclude:
-                    if fname.endswith(ex + ext):
-                        skip = True
-                        break
-            if skip:
+            if not any(fname.endswith(ext) for ext in extensions):
+                continue
+            if any(
+                fname.endswith(ex + ext) for ext in extensions for ex in exclude
+            ):
                 continue
 
             fname = os.path.join(root, fname)
