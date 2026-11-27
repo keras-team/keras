@@ -130,7 +130,10 @@ class Normalization(DataLayer):
         self.invert = invert
         self.supports_masking = True
         self._build_input_shape = None
-        self.mean = None
+        self._mean = None
+        self._variance = None
+        self.adapt_mean = None
+        self.adapt_variance = None
 
         # Set `mean` and `variance` if passed.
         if (mean is not None) != (variance is not None):
@@ -219,7 +222,6 @@ class Normalization(DataLayer):
                 trainable=False,
             )
             self.built = True
-            self.finalize_state()
 
         else:
             mean = ops.convert_to_tensor(self.input_mean)
@@ -249,8 +251,8 @@ class Normalization(DataLayer):
                 mean = ops.broadcast_to(mean, self._broadcast_shape)
                 variance = ops.broadcast_to(variance, self._broadcast_shape)
 
-            self.mean = ops.cast(mean, dtype=self.compute_dtype)
-            self.variance = ops.cast(variance, dtype=self.compute_dtype)
+            self._mean = ops.cast(mean, dtype=self.compute_dtype)
+            self._variance = ops.cast(variance, dtype=self.compute_dtype)
             self.built = True
 
     def adapt(self, data):
@@ -422,24 +424,32 @@ class Normalization(DataLayer):
 
         self.adapt_mean.assign(total_mean)
         self.adapt_variance.assign(total_var)
-        self.finalize_state()
 
-    def finalize_state(self):
-        if self.input_mean is not None or not self.built:
-            return
+    def _broadcast_weight(self, weight):
+        weight = ops.reshape(weight, self._broadcast_shape)
+        return ops.cast(weight, self.compute_dtype)
 
-        # In the adapt case, we make constant tensors for mean and variance with
-        # proper broadcast shape and dtype each time `finalize_state` is called.
-        self.mean = ops.reshape(self.adapt_mean, self._broadcast_shape)
-        self.mean = ops.cast(self.mean, self.compute_dtype)
-        self.variance = ops.reshape(self.adapt_variance, self._broadcast_shape)
-        self.variance = ops.cast(self.variance, self.compute_dtype)
+    @property
+    def mean(self):
+        """The mean, broadcast to the input rank, or `None` before build."""
+        if self.adapt_mean is None:
+            return self._mean
+        # Read the variable so a compiled step sees a later `adapt()`.
+        return self._broadcast_weight(self.adapt_mean)
+
+    @property
+    def variance(self):
+        """The variance, broadcast to the input rank, or `None` before build."""
+        if self.adapt_variance is None:
+            return self._variance
+        return self._broadcast_weight(self.adapt_variance)
 
     def call(self, inputs):
         # This layer can be called in tf.data
         # even with another backend after it has been adapted.
         # However it must use backend-native logic for adapt().
-        if self.mean is None:
+        mean, variance = self.mean, self.variance
+        if mean is None:
             # May happen when in tf.data when mean/var was passed explicitly
             raise ValueError(
                 "You must call `.build(input_shape)` "
@@ -450,8 +460,8 @@ class Normalization(DataLayer):
         )
         # Ensure the weights are in the correct backend. Without this, it is
         # possible to cause breakage when using this layer in tf.data.
-        mean = self.convert_weight(self.mean)
-        variance = self.convert_weight(self.variance)
+        mean = self.convert_weight(mean)
+        variance = self.convert_weight(variance)
         if self.invert:
             return self.backend.ops.numpy.add(
                 mean,
@@ -484,11 +494,6 @@ class Normalization(DataLayer):
             }
         )
         return config
-
-    def load_own_variables(self, store):
-        super().load_own_variables(store)
-        # Ensure that we call finalize_state after variable loading.
-        self.finalize_state()
 
     def get_build_config(self):
         if self._build_input_shape:

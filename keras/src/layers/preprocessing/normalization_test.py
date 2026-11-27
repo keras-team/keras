@@ -5,6 +5,7 @@ from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
+from keras.src import models
 from keras.src import testing
 from keras.src.backend import config
 from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
@@ -283,6 +284,44 @@ class NormalizationTest(testing.TestCase):
         # The expected broadcast shape should be (1, 7)
         self.assertEqual(tuple(layer.mean.shape), (1, 7))
         self.assertAllClose(layer.mean, [[5.0] * 7])
+
+    @parameterized.parameters([(-1,), (None,), ((1, 2),)])
+    def test_adapt_after_compiled_call(self, axis):
+        x = np.random.random((32, 4, 3)).astype("float32")
+        layer = layers.Normalization(axis=axis)
+        layer.adapt(x)
+        model = models.Sequential([layers.Input((4, 3)), layer])
+        model.predict_on_batch(x)
+
+        x2 = x * 5 + 3
+        layer.adapt(x2)
+        reference = layers.Normalization(axis=axis)
+        reference.adapt(x2)
+        self.assertAllClose(
+            model.predict_on_batch(x2), reference(x2), atol=1e-5
+        )
+
+    def test_set_weights_after_compiled_call(self):
+        x = np.random.random((32, 4)).astype("float32")
+        layer = layers.Normalization()
+        layer.adapt(x)
+        model = models.Sequential([layers.Input((4,)), layer])
+        model.predict_on_batch(x)
+
+        x2 = x * 5 + 3
+        reference = layers.Normalization()
+        reference.adapt(x2)
+        layer.set_weights(reference.get_weights())
+        self.assertAllClose(
+            model.predict_on_batch(x2), reference(x2), atol=1e-5
+        )
+        self.assertAllEqual(layer.mean, reference.mean)
+        self.assertAllEqual(layer.variance, reference.variance)
+
+    def test_mean_and_variance_before_build(self):
+        layer = layers.Normalization()
+        self.assertIsNone(layer.mean)
+        self.assertIsNone(layer.variance)
 
     def test_adapt_list_of_batches(self):
         x = np.random.random((32, 4)).astype("float32")
