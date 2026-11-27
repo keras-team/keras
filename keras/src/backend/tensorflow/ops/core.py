@@ -425,15 +425,27 @@ def associative_scan(f, elems, reverse=False, axis=0):
     def _get_dim(x):
         return shape(x)[axis]
 
-    # TODO add constant dim check
-    num_elems = _get_dim(elems_flat[0])
-    if not all(_get_dim(elem) == num_elems for elem in elems_flat[1:]):
+    static_dims = set()
+    for elem in elems_flat:
+        static_dim = tf.get_static_value(_get_dim(elem))
+        if static_dim is not None:
+            static_dims.add(int(static_dim))
+    if len(static_dims) > 1:
         raise ValueError(
             "Array inputs to associative_scan must have the same "
             "first dimension. (saw: {})".format(
                 [tf.shape(elem) for elem in elems_flat]
             )
         )
+
+    # A known scan length lets mixed shapes use the static scan path.
+    if static_dims:
+        static_dim = static_dims.pop()
+        for i, elem in enumerate(elems_flat):
+            if elem.shape[axis] is None:
+                elem_shape = elem.shape.as_list()
+                elem_shape[axis] = static_dim
+                elems_flat[i] = tf.ensure_shape(elem, elem_shape)
 
     def _interleave(a, b, axis):
         # [a b c ...] [d e f ...] -> [a d b e c f ...]
