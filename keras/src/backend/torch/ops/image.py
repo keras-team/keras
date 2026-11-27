@@ -942,11 +942,10 @@ def _map_coordinates_2d(images, y, x, order, fill_mode, fill_value):
                 contribution = torch.where(
                     valid.unsqueeze(-1), contribution, fill_value
                 )
-            weight = y_weight * x_weight
-            if torch.is_tensor(weight):
+            if order != 0:
                 # Add a channel axis so the weight broadcasts.
-                weight = weight.unsqueeze(-1)
-            contribution = weight * contribution
+                weight = (y_weight * x_weight).unsqueeze(-1)
+                contribution = weight * contribution
             result = contribution if result is None else result + contribution
     if _is_integer(images):
         result = result if _is_integer(result) else torch.round(result)
