@@ -1,4 +1,5 @@
 import numpy as np
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import initializers
@@ -155,21 +156,25 @@ class RandomInitializersTest(testing.TestCase):
         initializer = initializers.get("OrthogonalInitializer")
         self.assertIsInstance(initializer, initializers.Orthogonal)
 
-    def test_orthogonal_half_precision(self):
-        for dtype, atol in (("float16", 5e-3), ("bfloat16", 5e-2)):
-            for shape in ((6, 6), (8, 4), (4, 8)):
-                initializer = initializers.Orthogonal(seed=1234)
-                values = initializer(shape=shape, dtype=dtype)
-                self.assertEqual(standardize_dtype(values.dtype), dtype)
-                self.assertEqual(values.shape, shape)
-                array = backend.ops.convert_to_numpy(
-                    backend.ops.cast(values, "float32")
-                )
-                size = min(shape)
-                gram = (
-                    array.T @ array if shape[0] >= shape[1] else array @ array.T
-                )
-                self.assertAllClose(gram, np.eye(size), atol=atol)
+    @parameterized.parameters(
+        ("float16", (6, 6), 5e-3),
+        ("float16", (8, 4), 5e-3),
+        ("float16", (4, 8), 5e-3),
+        ("bfloat16", (6, 6), 5e-2),
+        ("bfloat16", (8, 4), 5e-2),
+        ("bfloat16", (4, 8), 5e-2),
+    )
+    def test_orthogonal_half_precision(self, dtype, shape, atol):
+        initializer = initializers.Orthogonal(seed=1234)
+        values = initializer(shape=shape, dtype=dtype)
+        self.assertEqual(standardize_dtype(values.dtype), dtype)
+        self.assertEqual(values.shape, shape)
+        array = backend.ops.convert_to_numpy(
+            backend.ops.cast(values, "float32")
+        )
+        size = min(shape)
+        gram = array.T @ array if shape[0] >= shape[1] else array @ array.T
+        self.assertAllClose(gram, np.eye(size), atol=atol)
 
     def test_get_method(self):
         obj = initializers.get("glorot_normal")
