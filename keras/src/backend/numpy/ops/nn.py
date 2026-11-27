@@ -986,7 +986,7 @@ def binary_crossentropy(target, output, from_logits=False):
         # Numerically stable form of the sigmoid crossentropy. Going through
         # the probabilities would clip the loss of confident predictions.
         bce = (
-            np.maximum(output, 0.0)
+            np.maximum(output, np.array(0.0, dtype))
             - output * target
             + np.log1p(np.exp(-np.abs(output)))
         )
