@@ -80,7 +80,7 @@ class LambTest(testing.TestCase):
         for dtype in ("float32", "float16", "bfloat16"):
             optimizer = Lamb(learning_rate=0.01)
             var = backend.Variable([1.0, -2.0, 3.0], dtype=dtype)
-            grad = ops.cast(ops.array([0.1, -0.2, 0.3]), dtype)
+            grad = ops.convert_to_tensor([0.1, -0.2, 0.3], dtype=dtype)
             for _ in range(20):
                 optimizer.apply([grad], [var])
             new = ops.convert_to_numpy(ops.cast(var, "float32"))

@@ -19,7 +19,7 @@ class Adam(torch_parallel_optimizer.TorchParallelOptimizer, optimizers.Adam):
         # Compute the step size in at least `float32`, since `beta_2=0.999` is
         # rounded to `1.0` in `bfloat16`.
         scalar_dtype = (
-            "float32" if dtype in (torch.float16, torch.bfloat16) else dtype
+            torch.float32 if dtype in (torch.float16, torch.bfloat16) else dtype
         )
         lr = ops.cast(learning_rate, scalar_dtype)
         local_step = ops.cast(self.iterations + 1, scalar_dtype)
