@@ -2568,6 +2568,23 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
         self.assertEqual(standardize_dtype(result.dtype), output_dtype)
 
+    @parameterized.product(
+        dtype=["float16", "bfloat16"],
+        from_logits=[False],
+    )
+    def test_binary_crossentropy_boundary_half_precision(
+        self, dtype, from_logits
+    ):
+        target = np.array([0.0, 1.0, 0.0, 1.0], dtype=dtype)
+        output = np.array([0.0, 1.0, 1.0, 0.0], dtype=dtype)
+        result = knn.binary_crossentropy(
+            target, output, from_logits=from_logits
+        )
+        result_np = backend.convert_to_numpy(result)
+        self.assertFalse(np.isnan(result_np).any())
+        self.assertFalse(np.isinf(result_np).any())
+        self.assertEqual(standardize_dtype(result.dtype), dtype)
+
     def test_categorical_crossentropy(self):
         target = np.array(
             [
