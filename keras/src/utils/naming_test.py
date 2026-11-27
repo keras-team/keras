@@ -84,6 +84,11 @@ class NamingUtilsTest(test_case.TestCase):
         snake_case_name = naming.to_snake_case(name)
         self.assertEqual(snake_case_name, name)
 
+    def test_to_snake_case_capital_after_underscore(self):
+        self.assertEqual(
+            naming.to_snake_case("Already_Snake_Cased"), "already_snake_cased"
+        )
+
     def test_to_snake_case_no_changes(self):
         name = "lowercase"
         snake_case_name = naming.to_snake_case(name)
