@@ -2918,14 +2918,17 @@ def binary_focal_crossentropy(
     if label_smoothing:
         y_true = y_true * (1.0 - label_smoothing) + 0.5 * label_smoothing
 
-    if from_logits:
-        y_pred = ops.sigmoid(y_pred)
-
+    # Compute the crossentropy from the logits when possible. Going through the
+    # probabilities clips them, which zeroes the loss and gradient of
+    # confidently wrong predictions on the backends that cannot recover the
+    # logits from the sigmoid output.
     bce = ops.binary_crossentropy(
         target=y_true,
         output=y_pred,
-        from_logits=False,
+        from_logits=from_logits,
     )
+    if from_logits:
+        y_pred = ops.sigmoid(y_pred)
 
     # Calculate focal factor
     p_t = y_true * y_pred + (1 - y_true) * (1 - y_pred)

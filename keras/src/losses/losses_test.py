@@ -14,9 +14,13 @@ from keras.src.api_export import REGISTERED_NAMES_TO_OBJS
 from keras.src.backend import config
 from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import set_keras_mask
+from keras.src.initializers import Constant
+from keras.src.layers import Dense
 from keras.src.layers import Input
 from keras.src.losses import losses
 from keras.src.models import Functional
+from keras.src.models import Sequential
+from keras.src.optimizers import SGD
 
 
 class MeanSquaredErrorTest(testing.TestCase):
@@ -1992,6 +1996,67 @@ class BinaryFocalCrossentropyTest(testing.TestCase):
         obj = losses.BinaryFocalCrossentropy(dtype="bfloat16")
         loss = obj(y_true, y_pred)
         self.assertDType(loss, "bfloat16")
+
+    @parameterized.named_parameters(
+        ("minus_30", -30.0),
+        ("minus_20", -20.0),
+        ("minus_10", -10.0),
+        ("minus_5", -5.0),
+        ("zero", 0.0),
+        ("plus_5", 5.0),
+    )
+    def test_from_logits_extreme_values(self, logit):
+        # With positive labels, a very negative logit is a confidently wrong
+        # prediction. Its loss must keep growing instead of being clipped.
+        gamma = 2.0
+        p = 1.0 / (1.0 + np.exp(-logit))
+        expected_loss = (1.0 - p) ** gamma * np.logaddexp(0.0, -logit)
+
+        loss = losses.binary_focal_crossentropy(
+            np.ones((1, 1), dtype="float32"),
+            np.array([[logit]], dtype="float32"),
+            gamma=gamma,
+            from_logits=True,
+        )
+        self.assertAllClose(loss, [expected_loss], rtol=1e-4, atol=1e-4)
+
+    @parameterized.named_parameters(
+        ("minus_30", -30.0),
+        ("minus_20", -20.0),
+        ("minus_10", -10.0),
+        ("minus_5", -5.0),
+        ("zero", 0.0),
+        ("plus_5", 5.0),
+    )
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="The NumPy backend does not support training.",
+    )
+    def test_from_logits_extreme_values_gradient(self, logit):
+        # The gradient of a confidently wrong prediction must not be clipped
+        # to zero.
+        gamma = 2.0
+        p = 1.0 / (1.0 + np.exp(-logit))
+        bce = np.logaddexp(0.0, -logit)
+        expected_grad = -((1.0 - p) ** gamma) * (gamma * p * bce + (1.0 - p))
+
+        # The weight is the logit, so a single SGD step of `1.0` moves it by
+        # the negative gradient.
+        model = Sequential(
+            [
+                Input(shape=(1,)),
+                Dense(1, use_bias=False, kernel_initializer=Constant(logit)),
+            ]
+        )
+        model.compile(
+            optimizer=SGD(learning_rate=1.0),
+            loss=losses.BinaryFocalCrossentropy(gamma=gamma, from_logits=True),
+        )
+        model.train_on_batch(
+            np.ones((1, 1), dtype="float32"), np.ones((1, 1), dtype="float32")
+        )
+        grad = logit - float(ops.convert_to_numpy(model.weights[0])[0, 0])
+        self.assertAllClose(grad, expected_grad, rtol=1e-3, atol=1e-3)
 
 
 class CategoricalFocalCrossentropyTest(testing.TestCase):
