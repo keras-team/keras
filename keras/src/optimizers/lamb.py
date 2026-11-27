@@ -90,13 +90,20 @@ class Lamb(optimizer.Optimizer):
         """Update step given gradient and the associated model variable."""
         lr = backend.ops.cast(learning_rate, variable.dtype)
         gradient = backend.ops.cast(gradient, variable.dtype)
-        local_step = backend.ops.cast(self.iterations + 1, variable.dtype)
+        # Compute the bias corrections in at least `float32`, since
+        # `beta_2=0.999` is rounded to `1.0` in `bfloat16`.
+        scalar_dtype = (
+            "float32"
+            if variable.dtype in ("float16", "bfloat16")
+            else variable.dtype
+        )
+        local_step = backend.ops.cast(self.iterations + 1, scalar_dtype)
 
         beta_1_power = backend.ops.numpy.power(
-            backend.ops.cast(self.beta_1, variable.dtype), local_step
+            backend.ops.cast(self.beta_1, scalar_dtype), local_step
         )
         beta_2_power = backend.ops.numpy.power(
-            backend.ops.cast(self.beta_2, variable.dtype), local_step
+            backend.ops.cast(self.beta_2, scalar_dtype), local_step
         )
 
         m = self._momentums[self._get_variable_index(variable)]
@@ -119,10 +126,14 @@ class Lamb(optimizer.Optimizer):
             ),
         )
 
-        m_t_hat = backend.ops.numpy.divide(m, (1.0 - beta_1_power))
+        m_t_hat = backend.ops.numpy.divide(
+            m, backend.ops.cast(1.0 - beta_1_power, variable.dtype)
+        )
         v_sqrt = backend.ops.numpy.add(
             backend.ops.numpy.sqrt(
-                backend.ops.numpy.divide(v, (1.0 - beta_2_power))
+                backend.ops.numpy.divide(
+                    v, backend.ops.cast(1.0 - beta_2_power, variable.dtype)
+                )
             ),
             self.epsilon,
         )

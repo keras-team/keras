@@ -7,6 +7,7 @@ from keras.src import ops
 from keras.src import testing
 from keras.src.backend import config
 from keras.src.optimizers.adam import Adam
+from keras.src.optimizers.adamw import AdamW
 
 
 class AdamTest(testing.TestCase):
@@ -165,3 +166,23 @@ class AdamTest(testing.TestCase):
         x = keras.ops.ones((8, 5))
         y = keras.ops.zeros((8, 2))
         model.fit(x, y, verbose=0)
+
+    def test_half_precision_variables(self):
+        for optimizer_cls in (Adam, AdamW):
+            changes = {}
+            for dtype in ("float32", "float16", "bfloat16"):
+                optimizer = optimizer_cls(learning_rate=0.01)
+                var = backend.Variable([1.0, -2.0, 3.0], dtype=dtype)
+                grad = ops.convert_to_tensor([0.1, -0.2, 0.3], dtype=dtype)
+                for _ in range(20):
+                    optimizer.apply([grad], [var])
+                new = ops.convert_to_numpy(ops.cast(var, "float32"))
+                changes[dtype] = np.abs(new - [1.0, -2.0, 3.0]).mean()
+            # `beta_2=0.999` rounds to 1.0 in bfloat16, which used to freeze
+            # the variable.
+            self.assertAllClose(
+                changes["float16"], changes["float32"], rtol=0.1
+            )
+            self.assertAllClose(
+                changes["bfloat16"], changes["float32"], rtol=0.3
+            )
