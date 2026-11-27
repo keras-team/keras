@@ -1,10 +1,12 @@
 import numpy as np
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import initializers
 from keras.src import random
 from keras.src import testing
 from keras.src import utils
+from keras.src.backend.common import standardize_dtype
 from keras.src.initializers.random_initializers import compute_fans
 from keras.src.layers.attention.multi_head_attention import MultiHeadAttention
 
@@ -153,6 +155,26 @@ class RandomInitializersTest(testing.TestCase):
         # Test compatible class_name
         initializer = initializers.get("OrthogonalInitializer")
         self.assertIsInstance(initializer, initializers.Orthogonal)
+
+    @parameterized.parameters(
+        ("float16", (6, 6), 5e-3),
+        ("float16", (8, 4), 5e-3),
+        ("float16", (4, 8), 5e-3),
+        ("bfloat16", (6, 6), 5e-2),
+        ("bfloat16", (8, 4), 5e-2),
+        ("bfloat16", (4, 8), 5e-2),
+    )
+    def test_orthogonal_half_precision(self, dtype, shape, atol):
+        initializer = initializers.Orthogonal(seed=1234)
+        values = initializer(shape=shape, dtype=dtype)
+        self.assertEqual(standardize_dtype(values.dtype), dtype)
+        self.assertEqual(values.shape, shape)
+        array = backend.ops.convert_to_numpy(
+            backend.ops.cast(values, "float32")
+        )
+        size = min(shape)
+        gram = array.T @ array if shape[0] >= shape[1] else array @ array.T
+        self.assertAllClose(gram, np.eye(size), atol=atol)
 
     def test_get_method(self):
         obj = initializers.get("glorot_normal")
