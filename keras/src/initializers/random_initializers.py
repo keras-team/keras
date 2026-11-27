@@ -3,6 +3,7 @@ import math
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import random
+from keras.src.backend.common import standardize_dtype
 from keras.src.initializers.initializer import Initializer
 from keras.src.saving import serialization_lib
 
@@ -760,8 +761,13 @@ class Orthogonal(RandomInitializer):
         num_cols = shape[-1]
         flat_shape = (max(num_cols, num_rows), min(num_cols, num_rows))
 
+        # The QR factorization is not available in half precision on every
+        # backend, so compute it in `float32` and cast the result back.
+        dtype = standardize_dtype(dtype)
+        compute_dtype = "float32" if dtype in ("float16", "bfloat16") else dtype
+
         # Generate a random matrix
-        a = random.normal(flat_shape, seed=self.seed, dtype=dtype)
+        a = random.normal(flat_shape, seed=self.seed, dtype=compute_dtype)
         # Compute the qr factorization
         q, r = ops.qr(a)
         # Make Q uniform
@@ -769,7 +775,7 @@ class Orthogonal(RandomInitializer):
         q = q * ops.sign(d)
         if num_rows < num_cols:
             q = ops.transpose(q)
-        return self.gain * ops.reshape(q, shape)
+        return ops.cast(self.gain * ops.reshape(q, shape), dtype)
 
     def get_config(self):
         base_config = super().get_config()
