@@ -3143,6 +3143,30 @@ class NNOpsCorrectnessTest(testing.TestCase):
             tpu_rtol=1e-2,
         )
 
+    @parameterized.named_parameters(
+        named_product(is_causal=(False, True), key_heads=(4, 2))
+    )
+    def test_dot_product_attention_value_depth(self, is_causal, key_heads):
+        # The values can have a different head size than the queries and keys.
+        if key_heads != 4 and backend.backend() == "numpy":
+            self.skipTest("The numpy backend does not support grouped keys.")
+        rng = np.random.RandomState(0)
+        query = rng.uniform(size=(2, 3, 4, 8)).astype("float32")
+        key = rng.uniform(size=(2, 3, key_heads, 8)).astype("float32")
+        value = rng.uniform(size=(2, 3, key_heads, 5)).astype("float32")
+        outputs = knn.dot_product_attention(
+            query, key, value, is_causal=is_causal
+        )
+        self.assertEqual(tuple(outputs.shape), (2, 3, 4, 5))
+        group = 4 // key_heads
+        expected = _dot_product_attention(
+            query,
+            np.repeat(key, group, axis=2),
+            np.repeat(value, group, axis=2),
+            is_causal=is_causal,
+        )
+        self.assertAllClose(outputs, expected, atol=1e-5)
+
     @parameterized.named_parameters(named_product(scale=(1.0, 10.0)))
     def test_rms_normalization(self, scale):
         x = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]], dtype="float32")
