@@ -1085,8 +1085,8 @@ def binary_crossentropy(target, output, from_logits=False):
         )
 
     # `1 - epsilon` rounds to `1.0` in half precision, so compute in `float32`.
-    output_dtype = output.dtype
-    if output_dtype in (torch.float16, torch.bfloat16):
+    output_dtype = standardize_dtype(output.dtype)
+    if output_dtype in ("float16", "bfloat16"):
         output = output.float()
         target = target.float()
     output = torch.clip(output, config.epsilon(), 1.0 - config.epsilon())
@@ -1098,7 +1098,7 @@ def binary_crossentropy(target, output, from_logits=False):
     loss = tnn.binary_cross_entropy(
         output.reshape(-1), target.reshape(-1), reduction="none"
     )
-    return loss.reshape(output.shape).to(output_dtype)
+    return cast(loss.reshape(output.shape), output_dtype)
 
 
 def moments(x, axes, keepdims=False, synchronized=False):

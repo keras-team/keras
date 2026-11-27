@@ -1068,8 +1068,8 @@ def binary_crossentropy(target, output, from_logits=False):
     # `1 - epsilon` rounds to `1.0` in half precision, which turns
     # `log(1 - output)` into `-inf` and the loss into `nan`, so compute in
     # `float32`.
-    output_dtype = output.dtype
-    if output_dtype in (jnp.float16, jnp.bfloat16):
+    output_dtype = standardize_dtype(output.dtype)
+    if output_dtype in ("float16", "bfloat16"):
         output = cast(output, "float32")
         target = cast(target, "float32")
     output = jnp.clip(output, config.epsilon(), 1.0 - config.epsilon())
