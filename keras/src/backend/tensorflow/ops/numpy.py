@@ -1844,7 +1844,7 @@ def isin(x1, x2, assume_unique=False, invert=False):
         x2 = tf.unique(x2)[0]
 
     if tf.size(x1) == 0 or tf.size(x2) == 0:
-        return tf.zeros(output_shape, dtype=tf.bool)
+        return tf.fill(output_shape, bool(invert))
 
     cmp = tf.equal(tf.expand_dims(x1, 1), tf.expand_dims(x2, 0))
     result_flat = tf.reduce_any(cmp, axis=1)

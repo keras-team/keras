@@ -4450,6 +4450,13 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.isin(x, 2), np.isin(x, 2))
         self.assertAllClose(knp.isin(2, x), np.isin(2, x))
 
+        # Test empty test elements with invert
+        self.assertAllClose(
+            knp.isin(x, [], invert=True), np.isin(x, [], invert=True)
+        )
+        self.assertAllClose(
+            knp.isin([], x, invert=True), np.isin([], x, invert=True)
+        )
         self.assertAllClose(
             knp.isin(x, y, assume_unique=True),
             np.isin(x, y, assume_unique=True),
@@ -7219,6 +7226,13 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         ):
             self.assertAllClose(ind_knp, ind_np)
 
+        # Test Python int and list indices
+        for x in (5, [5, 6]):
+            for ind_knp, ind_np in zip(
+                knp.unravel_index(x, (3, 4)), np.unravel_index(x, (3, 4))
+            ):
+                self.assertAllClose(ind_knp, ind_np)
+
         x = np.array([[0, 1], [2, 3]])
         shape = (2, 2)
         for ind_knp, ind_np in zip(
@@ -9020,6 +9034,9 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.tri(3), np.tri(3))
         self.assertAllClose(knp.tri(3, 4), np.tri(3, 4))
         self.assertAllClose(knp.tri(3, 4, 1), np.tri(3, 4, 1))
+
+        # Test M=0
+        self.assertEqual(tuple(knp.tri(3, 0).shape), (3, 0))
 
         # Test k < 0
         self.assertAllClose(knp.tri(3, k=-1), np.tri(3, k=-1))

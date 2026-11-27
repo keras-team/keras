@@ -2224,7 +2224,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 def tri(N, M=None, k=0, dtype=None):
     dtype = to_torch_dtype(dtype or config.floatx())
-    M = M or N
+    M = N if M is None else M
     x = torch.ones((N, M), dtype=dtype, device=get_device())
     return torch.tril(x, diagonal=k)
 
